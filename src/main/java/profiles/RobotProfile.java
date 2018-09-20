@@ -1,0 +1,27 @@
+package profiles;
+
+public interface RobotProfile {
+
+    // Volts, meters
+    double getVoltPerAccel();
+    double getVoltPerSpeed();
+    double getFrictionVoltage();
+
+    // Meters
+    double getWheelRadiusMeters();
+    double getWheelbaseRadiusMeters();
+    // Multiplied by wheelbase to obtain effective wheelbase
+    double getWheelbaseScrubFactor();
+
+    // kg * m^2
+    double getLinearInertia();
+    double getAngularInertia();
+    // Allows us to model motor load as wheel w/ mass of robot
+    default double getCylindricalMoi() {
+        return 0.5 * getLinearInertia() * (getWheelRadiusMeters() * getWheelRadiusMeters());
+    }
+
+    // friction_force / w
+    double getAngularDrag();
+    
+}
