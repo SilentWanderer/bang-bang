@@ -17,8 +17,8 @@ public class Pose2d implements IPose2d<Pose2d> {
 
     private final static double kEps = 1E-9;
 
-    protected final Translation2d translation_;
-    protected final Rotation2d rotation_;
+    public final Translation2d translation_;
+    public final Rotation2d rotation_;
 
     public Pose2d() {
         translation_ = new Translation2d();

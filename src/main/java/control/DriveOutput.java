@@ -40,8 +40,9 @@ public class DriveOutput {
 
     public String toString() {
         return String.format("Left Vel: %s\tRight Vel: %s\n" +
-                                 "Left Accel: %s\tRight Accel: %s\n",
-                                 left_velocity, right_velocity, left_accel, right_accel);
+                                 "Left Accel: %s\tRight Accel: %s\n" +
+                                 "Left Voltage: %s\tRight Voltage: %s\n",
+                                 left_velocity, right_velocity, left_accel, right_accel, left_feedforward_voltage, right_feedforward_voltage);
     }
 
     public DriveOutput rads_to_inches(double pWheelRadius) {

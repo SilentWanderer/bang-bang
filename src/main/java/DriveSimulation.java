@@ -11,6 +11,7 @@ import lib.trajectory.Trajectory;
 import lib.trajectory.TrajectoryIterator;
 import lib.trajectory.timing.TimedState;
 import lib.trajectory.timing.TimingConstraint;
+import lib.util.ReflectingCSVWriter;
 import lib.util.Units;
 import odometry.Kinematics;
 import odometry.RobotState;
@@ -33,7 +34,6 @@ public class DriveSimulation {
 
     private List<Pose2d> mWaypoints = Arrays.asList(new Pose2d[] {
        new Pose2d(0.0, 0.0, Rotation2d.fromDegrees(0.0)),
-       new Pose2d(50.0, 50.0, Rotation2d.fromDegrees(45.0)),
        new Pose2d(100.0, 100.0, Rotation2d.fromDegrees(0.0))
     });
 
@@ -47,15 +47,21 @@ public class DriveSimulation {
     public void simulate() {
 
         mDrivePlanner.setTrajectory(new TrajectoryIterator<>(new TimedView<>(generateTrajectory())));
+        ReflectingCSVWriter<Pose2d> csvPoseWriter = new ReflectingCSVWriter<>("pose_track.csv", Pose2d.class);
 
         double time = 0.0;
         WheelState wheelDisplacement = new WheelState();
 
         for(time = 0.0; !mDrivePlanner.isDone(); time += kDt) {
 
-            DriveOutput output = mDrivePlanner.update(time, mRobotState.getLatestFieldToVehiclePose());
+            Pose2d currentPose = mRobotState.getLatestFieldToVehiclePose();
+            DriveOutput output = mDrivePlanner.update(time, currentPose);
 
-            System.out.println(mRobotState.getLatestFieldToVehiclePose());
+            csvPoseWriter.add(currentPose);
+            csvPoseWriter.flush();
+
+            System.out.println(currentPose);
+            System.out.println(output);
 
             // Our pose estimator expects input in inches, not radians. We happily oblige.
             output = output.rads_to_inches(Units.meters_to_inches(mRobotProfile.getWheelRadiusMeters()));
