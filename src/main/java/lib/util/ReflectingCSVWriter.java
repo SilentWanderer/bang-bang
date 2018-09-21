@@ -16,7 +16,6 @@ public class ReflectingCSVWriter<T> {
 
     public ReflectingCSVWriter(String fileName, Class<T> typeClass) {
         mFields = typeClass.getFields();
-        System.out.println(Arrays.asList(mFields));
         try {
             mOutput = new PrintWriter(fileName);
         } catch (FileNotFoundException e) {
@@ -42,7 +41,6 @@ public class ReflectingCSVWriter<T> {
             try {
                 if (CSVWritable.class.isAssignableFrom(field.getType())) {
                     line.append(((CSVWritable) field.get(value)).toCSV());
-                    System.out.println("line:" + line);
                 } else {
                     line.append(field.get(value).toString());
                 }
