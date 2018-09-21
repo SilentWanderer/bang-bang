@@ -1,10 +1,10 @@
-import simulation.DriveSimulation;
+import simulation.TrackingSimulation;
 
 public class Main {
 
     public static void main(String[] args) {
-        DriveSimulation mDriveSimulation = new DriveSimulation();
-        mDriveSimulation.simulate();
+        TrackingSimulation mTrackingSimulation = new TrackingSimulation();
+        mTrackingSimulation.simulate();
     }
 
 }

@@ -24,7 +24,7 @@ import profiles.RobotProfile;
 import java.util.Arrays;
 import java.util.List;
 
-public class DriveSimulation {
+public class TrackingSimulation {
 
     private final double kDt = 1.0 / 100.0;
 
