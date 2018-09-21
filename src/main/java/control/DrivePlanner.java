@@ -22,6 +22,10 @@ import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * DrivePlanner is responsible for generating both trajectories and the feedforward commands needed to follow them.
+ * Trajectory followers are entirely modular and can be switched at-will.
+ */
 public class DrivePlanner implements CSVWritable {
 
     // Maximum cross-track error - helps prevent unattainable velocity/acceleration commands
@@ -132,6 +136,7 @@ public class DrivePlanner implements CSVWritable {
         return timed_trajectory;
     }
 
+    // TODO: Add acceleration
     @Override
     public String toCSV() {
         DecimalFormat fmt = new DecimalFormat("#0.000");
@@ -140,25 +145,37 @@ public class DrivePlanner implements CSVWritable {
                 mSetpoint.toCSV();
     }
 
+    /**
+     *
+     * @param timestamp The current timestamp, in seconds
+     * @param current_state The current (x, y, theta) pose of the robot
+     * @return A DriveOutput object containing velocity, acceleration, and voltage
+     */
     public DriveOutput update(double timestamp, Pose2d current_state) {
+        // No trajectory? Do nothing!
         if (mCurrentTrajectory == null) return new DriveOutput();
 
+        // If DrivePlanner has been reset and we haven't started the trajectory, set it to our timestamp.
         if (mCurrentTrajectory.getProgress() == 0.0 && !Double.isFinite(mLastTime)) {
             mLastTime = timestamp;
         }
 
         mDt = timestamp - mLastTime;
         mLastTime = timestamp;
+
+        // Advance the setpoint by the amount of time that has passed between this update and the last update.
         TrajectorySamplePoint<TimedState<Pose2dWithCurvature>> sample_point = mCurrentTrajectory.advance(mDt);
         mSetpoint = sample_point.state();
 
         if (!mCurrentTrajectory.isDone()) {
-            // Generate feedforward voltages.
+            // Generate feedforward voltages and convert everything to SI.
             final double velocity_m = Units.inches_to_meters(mSetpoint.velocity());
             final double curvature_m = Units.meters_to_inches(mSetpoint.state().getCurvature());
             final double dcurvature_ds_m = Units.meters_to_inches(Units.meters_to_inches(mSetpoint.state()
                     .getDCurvatureDs()));
             final double acceleration_m = Units.inches_to_meters(mSetpoint.acceleration());
+            // Theta = Distance / Radius
+            // To obtain angular acceleration, we use theta = d / r, then use the 2nd derivative of curvature to calculate additional acceleration.
             final DifferentialDrive.DriveDynamics dynamics = mDriveModel.solveInverseDynamics(
                     new ChassisState(velocity_m, velocity_m * curvature_m),
                     new ChassisState(acceleration_m,

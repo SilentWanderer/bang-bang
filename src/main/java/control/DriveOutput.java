@@ -1,5 +1,8 @@
 package control;
 
+/**
+ * Contains all the information needed to control the drivebase.
+ */
 public class DriveOutput {
     public DriveOutput() {
     }

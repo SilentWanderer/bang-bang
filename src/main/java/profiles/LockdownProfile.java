@@ -2,6 +2,9 @@ package profiles;
 
 import lib.util.Units;
 
+/**
+ * The dynamics information for Team 254's 2018 robot, Lockdown.
+ */
 public class LockdownProfile implements RobotProfile {
 
     @Override

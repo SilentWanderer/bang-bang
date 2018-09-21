@@ -2,15 +2,15 @@ package odometry;
 
 import lib.geometry.Pose2d;
 import lib.geometry.Rotation2d;
-import lib.geometry.Translation2d;
 import lib.geometry.Twist2d;
-import lib.physics.DifferentialDrive;
-import lib.physics.WheelState;
 import lib.util.InterpolatingDouble;
 import lib.util.InterpolatingTreeMap;
 
 import java.util.Map;
 
+/**
+ * Provides access to a buffer of robot poses, as well as ways to interpolate and extrapolate them.
+ */
 public class RobotState {
 
     private static final int kObservationBufferSize = 100;
@@ -19,8 +19,8 @@ public class RobotState {
 
     // FPGATimestamp -> RigidTransform2d or Rotation2d
     private InterpolatingTreeMap<InterpolatingDouble, Pose2d> field_to_vehicle_;
-    private Twist2d vehicle_velocity_predicted_;
     private Twist2d vehicle_velocity_measured_;
+    private Twist2d vehicle_displacement_measured_;
     private double distance_driven_;
 
     public RobotState(Kinematics pKinematicModel) {
@@ -34,8 +34,8 @@ public class RobotState {
     public synchronized void reset(double start_time, Pose2d initial_field_to_vehicle) {
         field_to_vehicle_ = new InterpolatingTreeMap<>(kObservationBufferSize);
         field_to_vehicle_.put(new InterpolatingDouble(start_time), initial_field_to_vehicle);
-        vehicle_velocity_predicted_ = Twist2d.identity();
         vehicle_velocity_measured_ = Twist2d.identity();
+        vehicle_displacement_measured_ = Twist2d.identity();
         distance_driven_ = 0.0;
     }
 
@@ -77,19 +77,19 @@ public class RobotState {
     public synchronized Pose2d getPredictedFieldToVehicle(double lookahead_time) {
         // dx = v * t
         return getLatestFieldToVehicle().getValue()
-                .transformBy(Pose2d.exp(vehicle_velocity_predicted_.scaled(lookahead_time)));
+                .transformBy(Pose2d.exp(vehicle_velocity_measured_.scaled(lookahead_time)));
     }
 
     public synchronized void addFieldToVehicleObservation(double timestamp, Pose2d observation) {
         field_to_vehicle_.put(new InterpolatingDouble(timestamp), observation);
     }
 
-    public synchronized void addObservations(double timestamp, Twist2d measured_velocity,
-                                             Twist2d predicted_velocity) {
+    public synchronized void addObservations(double timestamp, Twist2d measured_displacement,
+                                             Twist2d measured_velocity) {
         addFieldToVehicleObservation(timestamp,
-                mKinematicModel.integrateForwardKinematics(getLatestFieldToVehicle().getValue(), measured_velocity));
+                mKinematicModel.integrateForwardKinematics(getLatestFieldToVehicle().getValue(), measured_displacement));
+        vehicle_displacement_measured_ = measured_displacement;
         vehicle_velocity_measured_ = measured_velocity;
-        vehicle_velocity_predicted_ = predicted_velocity;
     }
 
     public synchronized Twist2d generateOdometryFromSensors(double left_encoder_delta_distance, double
@@ -113,12 +113,12 @@ public class RobotState {
         return distance_driven_;
     }
 
-    public synchronized Twist2d getPredictedVelocity() {
-        return vehicle_velocity_predicted_;
-    }
-
     public synchronized Twist2d getMeasuredVelocity() {
         return vehicle_velocity_measured_;
+    }
+
+    public synchronized Twist2d getMeasuredDisplacement() {
+        return vehicle_displacement_measured_;
     }
 
 }

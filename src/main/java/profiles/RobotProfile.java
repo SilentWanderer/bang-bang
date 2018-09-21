@@ -1,5 +1,8 @@
 package profiles;
 
+/**
+ * Stores dynamics information about our robot.
+ */
 public interface RobotProfile {
 
     // Volts, meters
