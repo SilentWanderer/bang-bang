@@ -36,16 +36,26 @@ public class DrivePlanner implements CSVWritable {
     private final RobotProfile mRobotProfile;
     private final DCMotorTransmission mDriveTransmission;
     private final DifferentialDrive mDriveModel;
+
+    private final AController mController;
+    private final PlannerMode mPlannerMode;
     
-    public DrivePlanner(RobotProfile pRobotProfile) {
+    public DrivePlanner(RobotProfile pRobotProfile, PlannerMode pPlannerMode) {
         mRobotProfile = pRobotProfile;
 
         // Invert our feedforward constants. Torque constant is kT = I * kA, where I is the robot modeled as a cylindrical load on the motor and kA is the inverted feedforward.
         mDriveTransmission = new DCMotorTransmission(1 / mRobotProfile.getVoltPerSpeed(), mRobotProfile.getCylindricalMoi() / mRobotProfile.getVoltPerAccel(), mRobotProfile.getFrictionVoltage());
         mDriveModel = new DifferentialDrive(mRobotProfile.getLinearInertia(), mRobotProfile.getAngularInertia(), mRobotProfile.getAngularDrag(), mRobotProfile.getWheelRadiusMeters(), mRobotProfile.getWheelbaseRadiusMeters(),
                 mDriveTransmission, mDriveTransmission);
+        mController = new NonlinearFeedbackController(mDriveModel);
+        mPlannerMode = pPlannerMode;
     }
-    
+
+    public enum PlannerMode {
+        FEEDFORWARD_ONLY,
+        FEEDBACK;
+    }
+
     // Trajectory and errors are in inches
     TrajectoryIterator<TimedState<Pose2dWithCurvature>> mCurrentTrajectory;
     public TimedState<Pose2dWithCurvature> mSetpoint = new TimedState<>(Pose2dWithCurvature.identity());
@@ -59,6 +69,12 @@ public class DrivePlanner implements CSVWritable {
 
     DriveOutput mOutput = new DriveOutput();
 
+    public void reset() {
+        mError = Pose2d.identity();
+        mOutput = new DriveOutput();
+        mLastTime = Double.POSITIVE_INFINITY;
+    }
+
     public void setTrajectory(final TrajectoryIterator<TimedState<Pose2dWithCurvature>> trajectory) {
         mCurrentTrajectory = trajectory;
         mSetpoint = trajectory.getState();
@@ -71,12 +87,6 @@ public class DrivePlanner implements CSVWritable {
                 break;
             }
         }
-    }
-
-    public void reset() {
-        mError = Pose2d.identity();
-        mOutput = new DriveOutput();
-        mLastTime = Double.POSITIVE_INFINITY;
     }
 
     public Trajectory<TimedState<Pose2dWithCurvature>> generateTrajectory(
@@ -161,13 +171,14 @@ public class DrivePlanner implements CSVWritable {
         }
 
         mDt = timestamp - mLastTime;
-        mLastTime = timestamp;
 
         // Advance the setpoint by the amount of time that has passed between this update and the last update.
         TrajectorySamplePoint<TimedState<Pose2dWithCurvature>> sample_point = mCurrentTrajectory.advance(mDt);
         mSetpoint = sample_point.state();
+        mError = current_state.inverse().transformBy(mSetpoint.state().getPose());
 
         if (!mCurrentTrajectory.isDone()) {
+
             // Generate feedforward voltages and convert everything to SI.
             final double velocity_m = Units.inches_to_meters(mSetpoint.velocity());
             final double curvature_m = Units.meters_to_inches(mSetpoint.state().getCurvature());
@@ -180,11 +191,20 @@ public class DrivePlanner implements CSVWritable {
                     new ChassisState(velocity_m, velocity_m * curvature_m),
                     new ChassisState(acceleration_m,
                             acceleration_m * curvature_m + velocity_m * velocity_m * dcurvature_ds_m));
-            mError = current_state.inverse().transformBy(mSetpoint.state().getPose());
 
-            mOutput = new DriveOutput(dynamics.wheel_velocity.left, dynamics.wheel_velocity.right, dynamics
-                    .wheel_acceleration.left, dynamics.wheel_acceleration.right, dynamics.voltage
-                    .left, dynamics.voltage.right);
+            switch(mPlannerMode) {
+                case FEEDFORWARD_ONLY:
+                    mOutput = new DriveOutput(dynamics.wheel_velocity.left, dynamics.wheel_velocity.right, dynamics
+                            .wheel_acceleration.left, dynamics.wheel_acceleration.right, dynamics.voltage
+                            .left, dynamics.voltage.right);
+                    break;
+                case FEEDBACK:
+                    mOutput = mController.update(mCurrentTrajectory, mSetpoint, dynamics, prev_velocity_, current_state, mDt);
+                    break;
+            }
+
+            prev_velocity_ = dynamics.chassis_velocity;
+            mLastTime = timestamp;
 
         } else {
             // TODO Possibly switch to a pose stabilizing controller?
@@ -216,4 +236,9 @@ public class DrivePlanner implements CSVWritable {
     public DifferentialDrive getDriveModel() {
         return mDriveModel;
     }
+
+    public PlannerMode getPlannerMode() {
+        return mPlannerMode;
+    }
+
 }

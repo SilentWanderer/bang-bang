@@ -1,9 +1,12 @@
 package control;
 
 import lib.geometry.Pose2d;
+import lib.geometry.Pose2dWithCurvature;
 import lib.physics.ChassisState;
 import lib.physics.DifferentialDrive;
 import lib.physics.WheelState;
+import lib.trajectory.TrajectoryIterator;
+import lib.trajectory.timing.TimedState;
 import lib.util.Units;
 import lib.util.Util;
 
@@ -15,14 +18,24 @@ public class NonlinearFeedbackController extends AController {
     }
 
     @Override
-    public DriveOutput update(DifferentialDrive.DriveDynamics pDynamics, ChassisState pPrevVelocity, Pose2d pCurrentState, double pDt) {
-        
-        mSetpoint = mCurrentTrajectory.advance(pDt).state();
-        mError = pCurrentState.inverse().transformBy(mSetpoint.state().getPose());
+    public DriveOutput update(TrajectoryIterator<TimedState<Pose2dWithCurvature>> pCurrentTrajectory,
+                              TimedState<Pose2dWithCurvature> pSetpoint,
+                              DifferentialDrive.DriveDynamics pDynamics,
+                              ChassisState pPrevVelocity,
+                              Pose2d pCurrentState,
+                              double pDt) {
+
+        mError = pCurrentState.inverse().transformBy(pSetpoint.state().getPose());
 
         // Implements eqn. 5.12 from https://www.dis.uniroma1.it/~labrob/pub/papers/Ramsete01.pdf
         final double kBeta = 2.0;  // >0.
         final double kZeta = 0.7;  // Damping coefficient, [0, 1].
+
+//        final double kBeta = 4.0;
+//        final double kZeta = 3.0;
+
+//        final double kBeta = 0.65;
+//        final double kZeta = 0.175;
 
         // Compute gain parameter.
         final double k = 2.0 * kZeta * Math.sqrt(kBeta * pDynamics.chassis_velocity.linear * pDynamics.chassis_velocity

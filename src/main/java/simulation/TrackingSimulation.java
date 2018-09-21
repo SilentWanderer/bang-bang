@@ -29,7 +29,7 @@ public class TrackingSimulation {
     private final double kDt = 1.0 / 100.0;
 
     private RobotProfile mRobotProfile = new LockdownProfile();
-    private DrivePlanner mDrivePlanner = new DrivePlanner(mRobotProfile);
+    private DrivePlanner mDrivePlanner = new DrivePlanner(mRobotProfile, DrivePlanner.PlannerMode.FEEDBACK);
     private Kinematics mKinematicModel = new Kinematics(mRobotProfile);
     private RobotState mRobotState = new RobotState(mKinematicModel);
     private RobotStateEstimator mRobotStateEstimator = new RobotStateEstimator(mRobotState, mKinematicModel);
@@ -43,7 +43,7 @@ public class TrackingSimulation {
 
     // in / s
     private final double kMaxVel = 120.0;
-    private final double kMaxAccel = 30.0;
+    private final double kMaxAccel = 60.0;
     private final double kMaxVoltage = 12.0;
 
     public void simulate() {
@@ -55,6 +55,8 @@ public class TrackingSimulation {
 
         double time = 0.0;
         WheelState wheelDisplacement = new WheelState();
+
+        mRobotStateEstimator.reset(0.0, new Pose2d(0, 10.0, Rotation2d.fromDegrees(0.0)));
 
         for(time = 0.0; !mDrivePlanner.isDone(); time += kDt) {
 

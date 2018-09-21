@@ -11,8 +11,6 @@ public abstract class AController {
 
     protected DifferentialDrive mDriveModel;
 
-    protected TrajectoryIterator<TimedState<Pose2dWithCurvature>> mCurrentTrajectory;
-    protected TimedState<Pose2dWithCurvature> mSetpoint;
     protected Pose2d mError;
 
 
@@ -20,6 +18,10 @@ public abstract class AController {
         mDriveModel = pDriveModel;
     }
 
-    public abstract DriveOutput update(DifferentialDrive.DriveDynamics pDynamics, ChassisState pPrevVelocity, Pose2d pCurrentState, double pDt);
-
+    public abstract DriveOutput update(TrajectoryIterator<TimedState<Pose2dWithCurvature>> pCurrentTrajectory,
+                                       TimedState<Pose2dWithCurvature> pSetpoint,
+                                        DifferentialDrive.DriveDynamics pDynamics,
+                                        ChassisState pPrevVelocity,
+                                        Pose2d pCurrentState,
+                                        double pDt);
 }

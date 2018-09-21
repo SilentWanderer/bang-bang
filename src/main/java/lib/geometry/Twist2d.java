@@ -1,6 +1,7 @@
 package lib.geometry;
 
 
+import lib.physics.ChassisState;
 import lib.util.Util;
 
 import java.text.DecimalFormat;
@@ -43,6 +44,10 @@ public class Twist2d {
         if (Math.abs(dtheta) < Util.kEpsilon && norm() < Util.kEpsilon)
             return 0.0;
         return dtheta / norm();
+    }
+
+    public ChassisState toChassis() {
+        return new ChassisState(dx, dtheta);
     }
 
     @Override
