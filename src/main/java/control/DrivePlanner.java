@@ -24,6 +24,7 @@ import java.util.List;
 
 public class DrivePlanner implements CSVWritable {
 
+    // Maximum cross-track error - helps prevent unattainable velocity/acceleration commands
     private static final double kMaxDx = 2.0;
     private static final double kMaxDy = 0.25;
     private static final double kMaxDTheta = Math.toRadians(5.0);
@@ -34,19 +35,20 @@ public class DrivePlanner implements CSVWritable {
     
     public DrivePlanner(RobotProfile pRobotProfile) {
         mRobotProfile = pRobotProfile;
-        // T / r = m * a
 
+        // Invert our feedforward constants. Torque constant is kT = I * kA, where I is the robot modeled as a cylindrical load on the motor and kA is the inverted feedforward.
         mDriveTransmission = new DCMotorTransmission(1 / mRobotProfile.getVoltPerSpeed(), mRobotProfile.getCylindricalMoi() / mRobotProfile.getVoltPerAccel(), mRobotProfile.getFrictionVoltage());
         mDriveModel = new DifferentialDrive(mRobotProfile.getLinearInertia(), mRobotProfile.getAngularInertia(), mRobotProfile.getAngularDrag(), mRobotProfile.getWheelRadiusMeters(), mRobotProfile.getWheelbaseRadiusMeters(),
                 mDriveTransmission, mDriveTransmission);
     }
     
-    
+    // Trajectory and errors are in inches
     TrajectoryIterator<TimedState<Pose2dWithCurvature>> mCurrentTrajectory;
     public TimedState<Pose2dWithCurvature> mSetpoint = new TimedState<>(Pose2dWithCurvature.identity());
     Pose2d mError = Pose2d.identity();
     boolean mIsReversed = false;
-    
+
+    // Rad / s. Taken from previous dynamics output (for now)
     ChassisState prev_velocity_ = new ChassisState();
     double mLastTime = Double.POSITIVE_INFINITY;
     double mDt = 0.0;
