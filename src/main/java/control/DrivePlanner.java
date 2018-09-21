@@ -33,9 +33,9 @@ public class DrivePlanner implements CSVWritable {
     private static final double kMaxDy = 0.25;
     private static final double kMaxDTheta = Math.toRadians(5.0);
     
-    public final RobotProfile mRobotProfile;
-    public final DCMotorTransmission mDriveTransmission;
-    public final DifferentialDrive mDriveModel;
+    private final RobotProfile mRobotProfile;
+    private final DCMotorTransmission mDriveTransmission;
+    private final DifferentialDrive mDriveModel;
     
     public DrivePlanner(RobotProfile pRobotProfile) {
         mRobotProfile = pRobotProfile;
@@ -136,12 +136,12 @@ public class DrivePlanner implements CSVWritable {
         return timed_trajectory;
     }
 
-    // TODO: Add acceleration
     @Override
     public String toCSV() {
         DecimalFormat fmt = new DecimalFormat("#0.000");
-        return fmt.format(mOutput.left_velocity) + "," + fmt.format(mOutput.right_velocity) + "," + fmt.format
-                (mOutput.left_feedforward_voltage) + "," + fmt.format(mOutput.right_feedforward_voltage) + "," +
+        return fmt.format(mOutput.left_velocity) + "," + fmt.format(mOutput.right_velocity) + "," +
+                fmt.format(mOutput.left_accel) + ", " + fmt.format(mOutput.right_accel) +
+                fmt.format(mOutput.left_feedforward_voltage) + "," + fmt.format(mOutput.right_feedforward_voltage) + "," +
                 mSetpoint.toCSV();
     }
 
@@ -204,6 +204,16 @@ public class DrivePlanner implements CSVWritable {
     public TimedState<Pose2dWithCurvature> setpoint() {
         return mSetpoint;
     }
-    
-    
+
+    public RobotProfile getRobotProfile() {
+        return mRobotProfile;
+    }
+
+    public DCMotorTransmission getDriveTransmission() {
+        return mDriveTransmission;
+    }
+
+    public DifferentialDrive getDriveModel() {
+        return mDriveModel;
+    }
 }

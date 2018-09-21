@@ -49,7 +49,9 @@ public class TrackingSimulation {
     public void simulate() {
 
         mDrivePlanner.setTrajectory(new TrajectoryIterator<>(new TimedView<>(generateTrajectory())));
-        ReflectingCSVWriter<Pose2d> csvPoseWriter = new ReflectingCSVWriter<>("pose_track.csv", Pose2d.class);
+
+        ReflectingCSVWriter<Pose2d> csvPoseWriter = new ReflectingCSVWriter<>("tracking.csv", Pose2d.class);
+        ReflectingCSVWriter<DrivePlanner> csvDrivePlanner = new ReflectingCSVWriter<>("trajectory.csv", DrivePlanner.class);
 
         double time = 0.0;
         WheelState wheelDisplacement = new WheelState();
@@ -59,6 +61,8 @@ public class TrackingSimulation {
             Pose2d currentPose = mRobotState.getLatestFieldToVehiclePose();
             DriveOutput output = mDrivePlanner.update(time, currentPose);
 
+            csvDrivePlanner.add(mDrivePlanner);
+            csvDrivePlanner.flush();
             csvPoseWriter.add(currentPose);
             csvPoseWriter.flush();
 
