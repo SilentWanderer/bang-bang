@@ -11,6 +11,7 @@ import lib.physics.WheelState;
 import lib.trajectory.TimedView;
 import lib.trajectory.Trajectory;
 import lib.trajectory.TrajectoryIterator;
+import lib.trajectory.timing.CentripetalAccelerationConstraint;
 import lib.trajectory.timing.TimedState;
 import lib.trajectory.timing.TimingConstraint;
 import lib.util.ReflectingCSVWriter;
@@ -35,20 +36,26 @@ public class TrackingSimulation {
     private RobotStateEstimator mRobotStateEstimator = new RobotStateEstimator(mRobotState, mKinematicModel);
 
     private List<Pose2d> mWaypoints = Arrays.asList(new Pose2d[] {
-       new Pose2d(0.0, 0.0, Rotation2d.fromDegrees(0.0)),
-       new Pose2d(100.0, 100.0, Rotation2d.fromDegrees(0.0))
+            new Pose2d(0.0, 50.0, Rotation2d.fromDegrees(0.0)),
+            new Pose2d(120.0, 50.0, Rotation2d.fromDegrees(0.0)),
+            new Pose2d(300.0, 80.0, Rotation2d.fromDegrees(0.0)),
     });
 
-    private List<TimingConstraint<Pose2dWithCurvature>> mTrajectoryConstraints = Arrays.asList();
-
     // in / s
-    private final double kMaxVel = 120.0;
+    private final double kMaxVel = 120.0; // 10 ft/s -> 120 in / s
     private final double kMaxAccel = 60.0;
+    private final double kMaxCentripetalAccel = 50;
     private final double kMaxVoltage = 12.0;
+
+    private List<TimingConstraint<Pose2dWithCurvature>> mTrajectoryConstraints = Arrays.asList(new CentripetalAccelerationConstraint(kMaxCentripetalAccel));
+
 
     public void simulate() {
 
-        mDrivePlanner.setTrajectory(new TrajectoryIterator<>(new TimedView<>(generateTrajectory())));
+        // TODO: Split simulation into another separate class so we can simulate running multiple trajectories.
+        TrajectoryIterator<TimedState<Pose2dWithCurvature>> currentTrajectory = new TrajectoryIterator<>(new TimedView<>(generateTrajectory()));
+        mDrivePlanner.setTrajectory(currentTrajectory);
+        mRobotStateEstimator.reset(0.0, currentTrajectory.getState().state().getPose());
 
         ReflectingCSVWriter<Pose2d> csvPoseWriter = new ReflectingCSVWriter<>("tracking.csv", Pose2d.class);
         ReflectingCSVWriter<DrivePlanner> csvDrivePlanner = new ReflectingCSVWriter<>("trajectory.csv", DrivePlanner.class);
@@ -56,7 +63,7 @@ public class TrackingSimulation {
         double time = 0.0;
         WheelState wheelDisplacement = new WheelState();
 
-        mRobotStateEstimator.reset(0.0, new Pose2d(0, 10.0, Rotation2d.fromDegrees(0.0)));
+//        mRobotStateEstimator.reset(0.0, new Pose2d(0, 10.0, Rotation2d.fromDegrees(0.0)));
 
         for(time = 0.0; !mDrivePlanner.isDone(); time += kDt) {
 

@@ -33,7 +33,7 @@ animate <- function(tracking_x, tracking_y, tracking_heading, trajectory_x, traj
 }
 
 tracking <- read.csv("/home/stephen/code/drivecontrol/tracking.csv")
-trajectory <- read.csv("/home/stephen/code/drivecontrol/tracking.csv")
+trajectory <- read.csv("/home/stephen/code/drivecontrol/trajectory.csv")
 
 matplot( c(0), c(0), type = "line", xlim = c(0, 54 * 12), ylim = c(0, 27 * 12), xlab = "X (inches)", ylab = "Y (inches)")
 
