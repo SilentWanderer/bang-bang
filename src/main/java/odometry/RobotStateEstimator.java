@@ -72,4 +72,8 @@ public class RobotStateEstimator {
         mLastLeftPosition = mLastRightPosition = 0.0;
     }
 
+    public RobotState getRobotState() {
+        return mRobotState;
+    }
+
 }

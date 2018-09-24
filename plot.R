@@ -1,16 +1,30 @@
 library("shape")
 library("scales")
+library("png")
 
 toDegrees <- function(rad) {(rad * 180) / (pi)}
 toRadians <- function(deg) {(deg * pi) / (180)}
 
+fieldWidth <- 396
+fieldHeight <- 27 * 12
+
+fieldImage <- readPNG("/home/stephen/code/drivecontrol/field.png")
+lim <- par()
+
+tracking <- read.csv("/home/stephen/code/drivecontrol/tracking.csv")
+trajectory <- read.csv("/home/stephen/code/drivecontrol/trajectory.csv")
   
+plotField <- function() {
+  plot( c(0), c(0), type = "l", xlim = c(0, fieldWidth), ylim = c(0, fieldHeight), xlab = "X (inches)", ylab = "Y (inches)")
+  rasterImage(fieldImage, lim$usr[1], lim$usr[3], lim$usr[2], lim$usr[4])
+}
+
 drawtracking <- function(tracking_x, tracking_y) {
-  matlines( tracking_x, tracking_y, col = "red")
+  lines( tracking_x, tracking_y, col = "red")
 }
 
 drawtrajectory <- function(trajectory_x, trajectory_y) {
-  matlines(trajectory_x, trajectory_y, col = "green")
+  lines(trajectory_x, trajectory_y, col = "green")
 }
 
 drawRobot <- function(width, height, x, y, heading) {
@@ -21,20 +35,19 @@ drawRobot <- function(width, height, x, y, heading) {
 
 animate <- function(tracking_x, tracking_y, tracking_heading, trajectory_x, trajectory_y, dt) {
   library("animation")
-  saveVideo({
-    for(i in 1:length(trajectory_x)) {
-      plot(x=c(),y=c(),xlim = c(-60, 54 * 12), ylim = c(-60, 27 * 12))
-      drawtrajectory(trajectory_x, trajectory_y)
-      drawtracking(tracking_x[1:i], tracking_y[1:i])
-      drawRobot(38.66, 33.91, tracking_x[i], tracking_y[i], toRadians(tracking_heading[i]))
-    }
-  }, interval = dt, ani.width = 1920, ani.height = 1080, video.name = "test.mp4")
+
+  for(i in 1:length(trajectory_x)) {
+    plotField()
+    
+    drawtrajectory(trajectory_x, trajectory_y)
+    drawtracking(tracking_x[1:i], tracking_y[1:i])
+    drawRobot(38.66, 33.91, tracking_x[i], tracking_y[i], toRadians(tracking_heading[i]))
+  }
 
 }
 
-tracking <- read.csv("/home/stephen/code/drivecontrol/tracking.csv")
-trajectory <- read.csv("/home/stephen/code/drivecontrol/trajectory.csv")
-
-matplot( c(0), c(0), type = "line", xlim = c(0, 54 * 12), ylim = c(0, 27 * 12), xlab = "X (inches)", ylab = "Y (inches)")
-
-animate(tracking[, 1], tracking[, 2], tracking[, 3], trajectory[, 1], trajectory[, 2], 0.01)
+saveVideo({
+  
+  animate(tracking[, 1], tracking[, 2], tracking[, 3], trajectory[, 1], trajectory[, 2], 0.01)
+  
+}, interval = dt, ani.width = lim$usr[2] - lim$usr[1], ani.height = lim$usr[4] - lim$usr[3], video.name = "test.mp4")
