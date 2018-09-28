@@ -13,6 +13,7 @@ import lib.trajectory.timing.TimedState;
 import lib.trajectory.timing.TimingConstraint;
 import lib.trajectory.timing.TimingUtil;
 import lib.util.CSVWritable;
+import lib.util.ReflectingCSVWriter;
 import lib.util.Units;
 import lib.util.Util;
 import profiles.RobotProfile;
@@ -20,6 +21,7 @@ import profiles.RobotProfile;
 import java.sql.Time;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -61,6 +63,7 @@ public class DrivePlanner implements CSVWritable {
     public TimedState<Pose2dWithCurvature> mSetpoint = new TimedState<>(Pose2dWithCurvature.identity());
     Pose2d mError = Pose2d.identity();
     boolean mIsReversed = false;
+    boolean mIsTurnInPlace = false;
 
     // Rad / s. Taken from previous dynamics output (for now)
     ChassisState prev_velocity_ = new ChassisState();
@@ -78,15 +81,27 @@ public class DrivePlanner implements CSVWritable {
     public void setTrajectory(final TrajectoryIterator<TimedState<Pose2dWithCurvature>> trajectory) {
         mCurrentTrajectory = trajectory;
         mSetpoint = trajectory.getState();
-        for (int i = 0; i < trajectory.trajectory().length(); ++i) {
-            if (trajectory.trajectory().getState(i).velocity() > Util.kEpsilon) {
-                mIsReversed = false;
-                break;
-            } else if (trajectory.trajectory().getState(i).velocity() < -Util.kEpsilon) {
-                mIsReversed = true;
-                break;
-            }
+        mIsReversed = TrajectoryUtil.isReversed(trajectory);
+        mIsTurnInPlace = false;
+    }
+
+    public void setRotationTrajectory(final TrajectoryIterator<TimedState<Rotation2d>> trajectory) {
+        List<TimedState<Pose2dWithCurvature>> timedRotationPoses = new ArrayList<>();
+
+        for(int i = 0; i < trajectory.trajectory().length(); i++) {
+            TimedState<Rotation2d> timedRotationState = trajectory.trajectory().getState(i);
+            TimedState<Pose2dWithCurvature> timedRotationPoseState = new TimedState<>(new Pose2dWithCurvature(new Pose2d(0.0, 0.0, timedRotationState.state()), Double.NaN),
+                                                                                      timedRotationState.t(),
+                                                                                      timedRotationState.velocity(),
+                                                                                      timedRotationState.acceleration());
+            timedRotationPoses.add(timedRotationPoseState);
         }
+
+        TrajectoryIterator<TimedState<Pose2dWithCurvature>> trajectoryIterator = new TrajectoryIterator<>(new TimedView<>(new Trajectory<>(timedRotationPoses)));
+
+        mCurrentTrajectory = trajectoryIterator;
+        mSetpoint = trajectoryIterator.getState();
+        mIsTurnInPlace = true;
     }
 
     public Trajectory<TimedState<Pose2dWithCurvature>> generateTrajectory(
@@ -108,6 +123,7 @@ public class DrivePlanner implements CSVWritable {
             double max_vel,  // inches/s
             double max_accel,  // inches/s^2
             double max_voltage) {
+
         List<Pose2d> waypoints_maybe_flipped = waypoints;
         final Pose2d flip = Pose2d.fromRotation(new Rotation2d(-1, 0, false));
         // TODO re-architect the spline generator to support reverse.
@@ -146,6 +162,40 @@ public class DrivePlanner implements CSVWritable {
         return timed_trajectory;
     }
 
+    public Trajectory<TimedState<Rotation2d>> generateTurnInPlaceTrajectory( boolean reversed,
+                                                                                      Rotation2d initial_heading,
+                                                                                      Rotation2d final_heading,
+                                                                                      final List<TimingConstraint<Pose2dWithCurvature>> constraints,
+                                                                                      double max_vel,  // inches/s
+                                                                                      double max_accel,  // inches/s^2
+                                                                                      double max_voltage) {
+
+        Rotation2d rotation_delta = initial_heading.inverse().rotateBy(final_heading);
+
+        // Find distance necessary to move wheels to achieve change in heading
+        double distance = rotation_delta.getRadians() * Units.meters_to_inches(mRobotProfile.getWheelbaseRadiusMeters());
+        List<Pose2d> wheelTravel = Arrays.asList(new Pose2d(0.0, 0.0, new Rotation2d()),
+                                                new Pose2d(distance, 0.0, new Rotation2d()));
+
+        // Create the constraint that the robot must be able to traverse the trajectory without ever applying more
+        // than the specified voltage.
+        final DifferentialDriveDynamicsConstraint<Pose2dWithCurvature> drive_constraints = new
+                DifferentialDriveDynamicsConstraint<>(mDriveModel, max_voltage);
+        List<TimingConstraint<Pose2dWithCurvature>> all_constraints = new ArrayList<>();
+        all_constraints.add(drive_constraints);
+        if (constraints != null) {
+            all_constraints.addAll(constraints);
+        }
+
+        Trajectory<TimedState<Pose2dWithCurvature>> wheelTrajectory = generateTrajectory(reversed, wheelTravel, all_constraints, 0.0, 0.0, max_vel, max_accel, max_voltage);
+
+        Trajectory<TimedState<Rotation2d>> timedRotationDeltaTrajectory = TrajectoryUtil.distanceToRotation(wheelTrajectory,
+                                                                                                            initial_heading,
+                                                                                                            Units.meters_to_inches(mRobotProfile.getWheelbaseRadiusMeters()));
+
+        return timedRotationDeltaTrajectory;
+    }
+
     @Override
     public String toCSV() {
         DecimalFormat fmt = new DecimalFormat("#0.000");
@@ -155,6 +205,7 @@ public class DrivePlanner implements CSVWritable {
                 mSetpoint.toCSV();
     }
 
+    ReflectingCSVWriter<Rotation2d> error = new ReflectingCSVWriter<>("error.csv", Rotation2d.class);
     /**
      *
      * @param timestamp The current timestamp, in seconds
@@ -179,28 +230,47 @@ public class DrivePlanner implements CSVWritable {
 
         if (!mCurrentTrajectory.isDone()) {
 
-            // Generate feedforward voltages and convert everything to SI.
-            final double velocity_m = Units.inches_to_meters(mSetpoint.velocity());
-            final double curvature_m = Units.meters_to_inches(mSetpoint.state().getCurvature());
-            final double dcurvature_ds_m = Units.meters_to_inches(Units.meters_to_inches(mSetpoint.state()
-                    .getDCurvatureDs()));
-            final double acceleration_m = Units.inches_to_meters(mSetpoint.acceleration());
-            // Theta = Distance / Radius
-            // To obtain angular acceleration, we use theta = d / r, then use the 2nd derivative of curvature to calculate additional acceleration.
-            final DifferentialDrive.DriveDynamics dynamics = mDriveModel.solveInverseDynamics(
-                    new ChassisState(velocity_m, velocity_m * curvature_m),
-                    new ChassisState(acceleration_m,
-                            acceleration_m * curvature_m + velocity_m * velocity_m * dcurvature_ds_m));
+            DifferentialDrive.DriveDynamics dynamics;
 
-            switch(mPlannerMode) {
-                case FEEDFORWARD_ONLY:
-                    mOutput = new DriveOutput(dynamics.wheel_velocity.left, dynamics.wheel_velocity.right, dynamics
-                            .wheel_acceleration.left, dynamics.wheel_acceleration.right, dynamics.voltage
-                            .left, dynamics.voltage.right);
-                    break;
-                case FEEDBACK:
-                    mOutput = mController.update(mCurrentTrajectory, mSetpoint, dynamics, prev_velocity_, current_state, mDt);
-                    break;
+            if(mIsTurnInPlace) {
+
+                dynamics = mDriveModel.solveInverseDynamics(new ChassisState(0.0, mSetpoint.velocity()),
+                                                            new ChassisState(0.0, mSetpoint.acceleration()));
+                // Modify our setpoint to our current (x,y) position. This way we can use the controller without having it compensate for cross-track error.
+                mSetpoint = new TimedState<>(new Pose2dWithCurvature(current_state.translation_,
+                                                                                        mSetpoint.state().getRotation(),
+                                                                                        Double.POSITIVE_INFINITY),
+                                                                                        mSetpoint.t(), mSetpoint.velocity(), mSetpoint.acceleration());
+                error.flush();
+//                mOutput = mController.update(mCurrentTrajectory, mSetpoint, dynamics, prev_velocity_, current_state, mDt);
+                mOutput = new DriveOutput(dynamics.wheel_velocity.left, dynamics.wheel_velocity.right, dynamics
+                        .wheel_acceleration.left, dynamics.wheel_acceleration.right, dynamics.voltage
+                        .left, dynamics.voltage.right);
+
+            } else {
+                // Generate feedforward voltages and convert everything to SI.
+                final double velocity_m = Units.inches_to_meters(mSetpoint.velocity());
+                final double curvature_m = Units.meters_to_inches(mSetpoint.state().getCurvature());
+                final double dcurvature_ds_m = Units.meters_to_inches(Units.meters_to_inches(mSetpoint.state()
+                        .getDCurvatureDs()));
+                final double acceleration_m = Units.inches_to_meters(mSetpoint.acceleration());
+
+                // To obtain angular acceleration, we use theta = d / r, then use the 2nd derivative of curvature to calculate additional acceleration.
+                dynamics = mDriveModel.solveInverseDynamics(
+                        new ChassisState(velocity_m, velocity_m * curvature_m),
+                        new ChassisState(acceleration_m,
+                                acceleration_m * curvature_m + velocity_m * velocity_m * dcurvature_ds_m));
+
+                switch(mPlannerMode) {
+                    case FEEDFORWARD_ONLY:
+                        mOutput = new DriveOutput(dynamics.wheel_velocity.left, dynamics.wheel_velocity.right, dynamics
+                                .wheel_acceleration.left, dynamics.wheel_acceleration.right, dynamics.voltage
+                                .left, dynamics.voltage.right);
+                        break;
+                    case FEEDBACK:
+                        mOutput = mController.update(mCurrentTrajectory, mSetpoint, dynamics, prev_velocity_, current_state, mDt);
+                        break;
+                }
             }
 
             prev_velocity_ = dynamics.chassis_velocity;

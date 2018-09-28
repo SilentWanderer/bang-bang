@@ -1,7 +1,6 @@
 package control;
 
-import lib.geometry.Pose2d;
-import lib.geometry.Pose2dWithCurvature;
+import lib.geometry.*;
 import lib.physics.ChassisState;
 import lib.physics.DifferentialDrive;
 import lib.physics.WheelState;
@@ -30,12 +29,6 @@ public class NonlinearFeedbackController extends AController {
         // Implements eqn. 5.12 from https://www.dis.uniroma1.it/~labrob/pub/papers/Ramsete01.pdf
         final double kBeta = 2.0;  // >0.
         final double kZeta = 0.7;  // Damping coefficient, [0, 1].
-
-//        final double kBeta = 4.0;
-//        final double kZeta = 3.0;
-
-//        final double kBeta = 0.65;
-//        final double kZeta = 0.175;
 
         // Compute gain parameter.
         final double k = 2.0 * kZeta * Math.sqrt(kBeta * pDynamics.chassis_velocity.linear * pDynamics.chassis_velocity
@@ -67,5 +60,7 @@ public class NonlinearFeedbackController extends AController {
         return new DriveOutput(pDynamics.wheel_velocity.left, pDynamics.wheel_velocity.right, pDynamics.wheel_acceleration
                 .left, pDynamics.wheel_acceleration.right, feedforward_voltages.left, feedforward_voltages.right);
         
+        
     }
+
 }

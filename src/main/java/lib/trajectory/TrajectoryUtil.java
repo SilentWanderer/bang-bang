@@ -9,6 +9,7 @@ import lib.trajectory.timing.TimedState;
 import lib.util.Util;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 public class TrajectoryUtil {
@@ -126,5 +127,39 @@ public class TrajectoryUtil {
                 maxDTheta));
     }
 
-    ;
+    public static Trajectory<TimedState<Rotation2d>> distanceToRotation(Trajectory<TimedState<Pose2dWithCurvature>> distanceTrajectory,
+                                                                        Rotation2d initial_heading,
+                                                                        double wheelbase_radius_inches) {
+        System.out.println("Converting");
+        List<TimedState<Rotation2d>> timedRotationStates = new ArrayList<>();
+
+        for(int i = 0; i < distanceTrajectory.length(); i++) {
+            TimedState<Pose2dWithCurvature> timedState = distanceTrajectory.getState(i);
+            Rotation2d delta_heading = Rotation2d.fromRadians(timedState.state().getTranslation().x() / wheelbase_radius_inches);
+            Rotation2d absolute_heading = initial_heading.rotateBy(delta_heading);
+            TimedState<Rotation2d> timedRotationState = new TimedState<>(absolute_heading,
+                                                        timedState.t(),
+                                                timedState.velocity() / wheelbase_radius_inches,
+                                             timedState.acceleration() / wheelbase_radius_inches);
+            System.out.println(timedRotationState);
+            timedRotationStates.add(timedRotationState);
+        }
+
+        return new Trajectory<>(timedRotationStates);
+    }
+
+    public static <S extends State<S>> boolean isReversed(TrajectoryIterator<TimedState<S>> trajectoryIterator) {
+        boolean reversed = false;
+        for (int i = 0; i < trajectoryIterator.trajectory().length(); ++i) {
+            if (trajectoryIterator.trajectory().getState(i).velocity() > Util.kEpsilon) {
+                reversed = false;
+                break;
+            } else if (trajectoryIterator.trajectory().getState(i).velocity() < -Util.kEpsilon) {
+                reversed = true;
+                break;
+            }
+        }
+        return reversed;
+    }
+
 }

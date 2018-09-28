@@ -24,4 +24,9 @@ public abstract class AController {
                                         ChassisState pPrevVelocity,
                                         Pose2d pCurrentState,
                                         double pDt);
+
+    public Pose2d getError() {
+        return mError;
+    }
+
 }
