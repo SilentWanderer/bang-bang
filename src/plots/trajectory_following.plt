@@ -23,4 +23,3 @@ plot    'tracking.csv' with lines, \
 
 
 plot "field.png" binary filetype=png dx=(field_width_inches / 610.0) dy=(field_height_inches / 514.0) w rgbalpha
-# plot "field.png" binary filetype=png dx=(window_width / 610) dy=(window_height / 514.0) w rgbalpha
