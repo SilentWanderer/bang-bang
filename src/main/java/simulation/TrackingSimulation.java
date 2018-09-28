@@ -49,9 +49,9 @@ public class TrackingSimulation {
     });
 
     // in / s
-    private final double kMaxLinearVel = 120.0; // 10 ft/s -> 120 in / s
-    private final double kMaxLinearAccel = 120.0;
-    private final double kMaxCentripetalAccel = Double.POSITIVE_INFINITY;
+    private final double kMaxLinearVel = 130.0; // 10 ft/s -> 120 in / s
+    private final double kMaxLinearAccel = 130.0;
+    private final double kMaxCentripetalAccel = 100.0;
     private final double kMaxVoltage = 12.0;
 
     private List<TimingConstraint<Pose2dWithCurvature>> mTrajectoryConstraints = Arrays.asList(new CentripetalAccelerationConstraint(kMaxCentripetalAccel));
@@ -61,31 +61,16 @@ public class TrackingSimulation {
 
         ReflectingCSVWriter<Pose2d> csvPoseWriter = new ReflectingCSVWriter<>("tracking.csv", Pose2d.class);
         ReflectingCSVWriter<DrivePlanner> csvDrivePlanner = new ReflectingCSVWriter<>("trajectory.csv", DrivePlanner.class);
-        DriveSimulation driveSimulation = new DriveSimulation(csvPoseWriter, csvDrivePlanner, mRobotStateEstimator, mDrivePlanner);
+        DriveSimulation driveSimulation = new DriveSimulation(csvPoseWriter, csvDrivePlanner, mRobotStateEstimator, mDrivePlanner, kDt);
 
         double timeDriven =
-        driveSimulation.driveTrajectory(generateTrajectory(mToScale), kDt, true) +
-        driveSimulation.driveTrajectory(generateTrajectory(0.0, 180.0, 120.0, 120.0), kDt) +
-        driveSimulation.driveTrajectory(generateTrajectory(mToSwitch), kDt, false) +
-        driveSimulation.driveTrajectory(generateTrajectory(180.0, 1.0, 120.0, 120.0), kDt) +
-        driveSimulation.driveTrajectory(generateTrajectory(mSwitchToScale), kDt, false);
+        driveSimulation.driveTrajectory(generateTrajectory(mToScale), true) +
+        driveSimulation.driveTrajectory(generateTrajectory(0.0, 180.0, 0.0, kMaxLinearVel, kMaxLinearAccel)) +
+        driveSimulation.driveTrajectory(generateTrajectory(mToSwitch), false) +
+        driveSimulation.driveTrajectory(generateTrajectory(180.0, 1.0, 0.0, kMaxLinearVel, kMaxLinearAccel)) +
+        driveSimulation.driveTrajectory(generateTrajectory(mSwitchToScale), false);
 
-        System.out.println(timeDriven);
-
-    }
-
-    public void testRotation() {
-
-        ReflectingCSVWriter<Rotation2d> csvRotationWriter = new ReflectingCSVWriter<>("rotation.csv", Rotation2d.class);
-        Trajectory<TimedState<Rotation2d>> trajectory = mDrivePlanner.generateTurnInPlaceTrajectory(false, Rotation2d.fromRadians(0.0), Rotation2d.fromRadians(180.0),
-                                                                                                    Collections.emptyList(),120.0, 120.0, 12.0);
-        TrajectoryIterator<TimedState<Rotation2d>> iterator = new TrajectoryIterator<>(new TimedView<>(trajectory));
-        for(double time = 0.0; time < 2.0; time += 0.01) {
-            TrajectorySamplePoint<TimedState<Rotation2d>> sample = iterator.advance(0.01);
-            System.out.println(sample.state());
-            csvRotationWriter.add(sample.state().state());
-            csvRotationWriter.flush();
-        }
+        System.out.println("Time Driven:" + timeDriven);
 
     }
 
@@ -96,16 +81,21 @@ public class TrackingSimulation {
      * @return
      */
     public Trajectory<TimedState<Pose2dWithCurvature>> generateTrajectory(List<Pose2d> pTrajectory) {
-        return generateTrajectory(pTrajectory, kMaxLinearVel, kMaxLinearAccel);
+        return mDrivePlanner.generateTrajectory(false, pTrajectory, mTrajectoryConstraints, 0.0, 0.0, kMaxLinearVel, kMaxLinearAccel, kMaxVoltage);
     }
 
-    public Trajectory<TimedState<Pose2dWithCurvature>> generateTrajectory(List<Pose2d> pTrajectory, double pMaxVel, double pMaxAccel) {
-        return mDrivePlanner.generateTrajectory(false, pTrajectory, mTrajectoryConstraints, pMaxVel, pMaxAccel, kMaxVoltage);
+    public Trajectory<TimedState<Pose2dWithCurvature>> generateTrajectory(List<Pose2d> pTrajectory, double pStartVel,double pEndVel) {
+        return mDrivePlanner.generateTrajectory(false, pTrajectory, mTrajectoryConstraints, pStartVel, pEndVel, kMaxLinearVel, kMaxLinearAccel, kMaxVoltage);
     }
 
-    public Trajectory<TimedState<Rotation2d>> generateTrajectory(double initialHeadingDegrees, double finalHeadingDegrees, double pMaxVel, double pMaxAccel) {
-        return mDrivePlanner.generateTurnInPlaceTrajectory(false, Rotation2d.fromDegrees(initialHeadingDegrees), Rotation2d.fromDegrees(finalHeadingDegrees),
-                                                            mTrajectoryConstraints, pMaxVel, pMaxAccel, kMaxVoltage);
+    public Trajectory<TimedState<Rotation2d>> generateTrajectory(double pInitialHeadingDegrees, double pFinalHeadingDegrees, double pMaxVel, double pMaxAccel) {
+        return mDrivePlanner.generateTurnInPlaceTrajectory(false, Rotation2d.fromDegrees(pInitialHeadingDegrees), Rotation2d.fromDegrees(pFinalHeadingDegrees),
+                                                            mTrajectoryConstraints, 0.0, pMaxVel, pMaxAccel, kMaxVoltage);
+    }
+
+    public Trajectory<TimedState<Rotation2d>> generateTrajectory(double pInitialHeadingDegrees, double pFinalHeadingDegrees, double pEndVel, double pMaxVel, double pMaxAccel) {
+        return mDrivePlanner.generateTurnInPlaceTrajectory(false, Rotation2d.fromDegrees(pInitialHeadingDegrees), Rotation2d.fromDegrees(pFinalHeadingDegrees),
+                mTrajectoryConstraints, pEndVel, pMaxVel, pMaxAccel, kMaxVoltage);
     }
 
 }

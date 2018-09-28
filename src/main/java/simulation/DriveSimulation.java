@@ -23,53 +23,35 @@ public class DriveSimulation {
     RobotStateEstimator mRobotStateEstimator;
     DrivePlanner mDrivePlanner;
     WheelState mWheelDisplacement = new WheelState();
+    private final double kDt;
     double time = 0.0;
 
 
-    public DriveSimulation(ReflectingCSVWriter<Pose2d> pOdometryWriter, ReflectingCSVWriter<DrivePlanner> pTrajectoryWriter, RobotStateEstimator pRobotStateEstimator, DrivePlanner pDrivePlanner) {
+    public DriveSimulation(ReflectingCSVWriter<Pose2d> pOdometryWriter, ReflectingCSVWriter<DrivePlanner> pTrajectoryWriter, RobotStateEstimator pRobotStateEstimator, DrivePlanner pDrivePlanner, double pDt) {
         mOdometryWriter = pOdometryWriter;
         mTrajectoryWriter = pTrajectoryWriter;
         mRobotStateEstimator = pRobotStateEstimator;
         mDrivePlanner = pDrivePlanner;
+        kDt = pDt;
     }
 
-    public double driveTrajectory(Trajectory<TimedState<Rotation2d>> pTrajectoryToDrive, double pDt) {
+    public double driveTrajectory(Trajectory<TimedState<Rotation2d>> pTrajectoryToDrive) {
+        double startTime = time;
+
         TrajectoryIterator<TimedState<Rotation2d>> trajectoryIterator = new TrajectoryIterator<>(new TimedView<>(pTrajectoryToDrive));
         mDrivePlanner.setRotationTrajectory(trajectoryIterator);
 
-        for (; !mDrivePlanner.isDone(); time += pDt) {
 
-            Pose2d currentPose = mRobotStateEstimator.getRobotState().getLatestFieldToVehiclePose();
-            DriveOutput output = mDrivePlanner.update(time, currentPose);
 
-            mTrajectoryWriter.add(mDrivePlanner);
-            mOdometryWriter.add(currentPose);
+        simulate();
 
-            mTrajectoryWriter.flush();
-            mOdometryWriter.flush();
+        System.out.println("Time driven: " + (time - startTime));
 
-            if(Math.abs(output.left_feedforward_voltage) > 12.0 || Math.abs(output.right_feedforward_voltage) > 12.0) {
-                System.err.println("Warning: Output above 12.0 volts.");
-                output.left_velocity = Util.limit(output.left_velocity, 12.0);
-                output.right_velocity = Util.limit(output.right_velocity, 12.0);
-            }
-
-            // Our pose estimator expects input in inches, not radians. We happily oblige.
-            output = output.rads_to_inches(Units.meters_to_inches(mDrivePlanner.getRobotProfile().getWheelRadiusMeters()));
-
-            // Update the total distance each wheel has traveled, in inches.
-            mWheelDisplacement = new WheelState(mWheelDisplacement.left + (output.left_velocity * pDt) + (0.5 * output.left_accel * pDt * pDt),
-                    mWheelDisplacement.right + (output.right_velocity * pDt) + (0.5 * output.right_accel * pDt * pDt));
-
-            mRobotStateEstimator.update(time, mWheelDisplacement.left, mWheelDisplacement.right);
-        }
-
-        System.out.println("Total time: " + time);
-
-        return time;
+        return time - startTime;
     }
 
-    public double driveTrajectory(Trajectory<TimedState<Pose2dWithCurvature>> pTrajectoryToDrive, double pDt, boolean pResetPoseToTrajectoryStart) {
+    public double driveTrajectory(Trajectory<TimedState<Pose2dWithCurvature>> pTrajectoryToDrive, boolean pResetPoseToTrajectoryStart) {
+        double startTime = time;
 
         if(pResetPoseToTrajectoryStart) {
             mRobotStateEstimator.reset(pTrajectoryToDrive.getFirstState().t(), pTrajectoryToDrive.getFirstState().state().getPose());
@@ -78,7 +60,15 @@ public class DriveSimulation {
         TrajectoryIterator<TimedState<Pose2dWithCurvature>> trajectoryIterator = new TrajectoryIterator<>(new TimedView<>(pTrajectoryToDrive));
         mDrivePlanner.setTrajectory(trajectoryIterator);
 
-        for (; !mDrivePlanner.isDone(); time += pDt) {
+        simulate();
+
+        System.out.println("Total time: " + (time - startTime));
+
+        return time - startTime;
+    }
+
+    private void simulate() {
+        for (; !mDrivePlanner.isDone(); time += kDt) {
 
             Pose2d currentPose = mRobotStateEstimator.getRobotState().getLatestFieldToVehiclePose();
             DriveOutput output = mDrivePlanner.update(time, currentPose);
@@ -99,15 +89,11 @@ public class DriveSimulation {
             output = output.rads_to_inches(Units.meters_to_inches(mDrivePlanner.getRobotProfile().getWheelRadiusMeters()));
 
             // Update the total distance each wheel has traveled, in inches.
-            mWheelDisplacement = new WheelState(mWheelDisplacement.left + (output.left_velocity * pDt) + (0.5 * output.left_accel * pDt * pDt),
-                    mWheelDisplacement.right + (output.right_velocity * pDt) + (0.5 * output.right_accel * pDt * pDt));
+            mWheelDisplacement = new WheelState(mWheelDisplacement.left + (output.left_velocity * kDt) + (0.5 * output.left_accel * kDt * kDt),
+                    mWheelDisplacement.right + (output.right_velocity * kDt) + (0.5 * output.right_accel * kDt * kDt));
 
             mRobotStateEstimator.update(time, mWheelDisplacement.left, mWheelDisplacement.right);
         }
-
-        System.out.println("Total time: " + time);
-
-        return time;
     }
 
 }

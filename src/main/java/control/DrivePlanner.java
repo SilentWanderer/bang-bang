@@ -166,6 +166,7 @@ public class DrivePlanner implements CSVWritable {
                                                                                       Rotation2d initial_heading,
                                                                                       Rotation2d final_heading,
                                                                                       final List<TimingConstraint<Pose2dWithCurvature>> constraints,
+                                                                                      double end_vel,
                                                                                       double max_vel,  // inches/s
                                                                                       double max_accel,  // inches/s^2
                                                                                       double max_voltage) {
@@ -187,7 +188,7 @@ public class DrivePlanner implements CSVWritable {
             all_constraints.addAll(constraints);
         }
 
-        Trajectory<TimedState<Pose2dWithCurvature>> wheelTrajectory = generateTrajectory(reversed, wheelTravel, all_constraints, 0.0, 0.0, max_vel, max_accel, max_voltage);
+        Trajectory<TimedState<Pose2dWithCurvature>> wheelTrajectory = generateTrajectory(reversed, wheelTravel, all_constraints, 0.0, end_vel, max_vel, max_accel, max_voltage);
 
         Trajectory<TimedState<Rotation2d>> timedRotationDeltaTrajectory = TrajectoryUtil.distanceToRotation(wheelTrajectory,
                                                                                                             initial_heading,
@@ -205,7 +206,6 @@ public class DrivePlanner implements CSVWritable {
                 mSetpoint.toCSV();
     }
 
-    ReflectingCSVWriter<Rotation2d> error = new ReflectingCSVWriter<>("error.csv", Rotation2d.class);
     /**
      *
      * @param timestamp The current timestamp, in seconds
@@ -241,7 +241,7 @@ public class DrivePlanner implements CSVWritable {
                                                                                         mSetpoint.state().getRotation(),
                                                                                         Double.POSITIVE_INFINITY),
                                                                                         mSetpoint.t(), mSetpoint.velocity(), mSetpoint.acceleration());
-                error.flush();
+
 //                mOutput = mController.update(mCurrentTrajectory, mSetpoint, dynamics, prev_velocity_, current_state, mDt);
                 mOutput = new DriveOutput(dynamics.wheel_velocity.left, dynamics.wheel_velocity.right, dynamics
                         .wheel_acceleration.left, dynamics.wheel_acceleration.right, dynamics.voltage

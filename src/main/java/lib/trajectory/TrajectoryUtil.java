@@ -141,7 +141,6 @@ public class TrajectoryUtil {
                                                         timedState.t(),
                                                 timedState.velocity() / wheelbase_radius_inches,
                                              timedState.acceleration() / wheelbase_radius_inches);
-            System.out.println(timedRotationState);
             timedRotationStates.add(timedRotationState);
         }
 
