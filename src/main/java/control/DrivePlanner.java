@@ -29,11 +29,6 @@ import java.util.List;
  * Trajectory followers are entirely modular and can be switched at-will.
  */
 public class DrivePlanner implements CSVWritable {
-
-    // Maximum cross-track error - helps prevent unattainable velocity/acceleration commands
-    private static final double kMaxDx = 2.0;
-    private static final double kMaxDy = 0.25;
-    private static final double kMaxDTheta = Math.toRadians(5.0);
     
     private final RobotProfile mRobotProfile;
     private final DCMotorTransmission mDriveTransmission;
@@ -45,7 +40,7 @@ public class DrivePlanner implements CSVWritable {
     public DrivePlanner(RobotProfile pRobotProfile, PlannerMode pPlannerMode) {
         mRobotProfile = pRobotProfile;
 
-        // Invert our feedforward constants. Torque constant is kT = I * kA, where I is the robot modeled as a cylindrical load on the motor and kA is the inverted feedforward.
+        // Invert our feedforward constants. Torque constant is kT = I * kA, where I is the robot modeled as a cylindrical load on the transmission and kA is the inverted feedforward.
         mDriveTransmission = new DCMotorTransmission(1 / mRobotProfile.getVoltPerSpeed(), mRobotProfile.getCylindricalMoi() / mRobotProfile.getVoltPerAccel(), mRobotProfile.getFrictionVoltage());
         mDriveModel = new DifferentialDrive(mRobotProfile.getLinearInertia(), mRobotProfile.getAngularInertia(), mRobotProfile.getAngularDrag(), mRobotProfile.getWheelRadiusMeters(), mRobotProfile.getWheelbaseRadiusMeters(),
                 mDriveTransmission, mDriveTransmission);
@@ -90,7 +85,7 @@ public class DrivePlanner implements CSVWritable {
 
         for(int i = 0; i < trajectory.trajectory().length(); i++) {
             TimedState<Rotation2d> timedRotationState = trajectory.trajectory().getState(i);
-            TimedState<Pose2dWithCurvature> timedRotationPoseState = new TimedState<>(new Pose2dWithCurvature(new Pose2d(0.0, 0.0, timedRotationState.state()), Double.NaN),
+            TimedState<Pose2dWithCurvature> timedRotationPoseState = new TimedState<>(new Pose2dWithCurvature(Pose2d.fromRotation(timedRotationState.state()), Double.NaN),
                                                                                       timedRotationState.t(),
                                                                                       timedRotationState.velocity(),
                                                                                       timedRotationState.acceleration());
@@ -102,99 +97,6 @@ public class DrivePlanner implements CSVWritable {
         mCurrentTrajectory = trajectoryIterator;
         mSetpoint = trajectoryIterator.getState();
         mIsTurnInPlace = true;
-    }
-
-    public Trajectory<TimedState<Pose2dWithCurvature>> generateTrajectory(
-            boolean reversed,
-            final List<Pose2d> waypoints,
-            final List<TimingConstraint<Pose2dWithCurvature>> constraints,
-            double max_vel,  // inches/s
-            double max_accel,  // inches/s^2
-            double max_voltage) {
-        return generateTrajectory(reversed, waypoints, constraints, 0.0, 0.0, max_vel, max_accel, max_voltage);
-    }
-
-    public Trajectory<TimedState<Pose2dWithCurvature>> generateTrajectory(
-            boolean reversed,
-            final List<Pose2d> waypoints,
-            final List<TimingConstraint<Pose2dWithCurvature>> constraints,
-            double start_vel,
-            double end_vel,
-            double max_vel,  // inches/s
-            double max_accel,  // inches/s^2
-            double max_voltage) {
-
-        List<Pose2d> waypoints_maybe_flipped = waypoints;
-        final Pose2d flip = Pose2d.fromRotation(new Rotation2d(-1, 0, false));
-        // TODO re-architect the spline generator to support reverse.
-        if (reversed) {
-            waypoints_maybe_flipped = new ArrayList<>(waypoints.size());
-            for (int i = 0; i < waypoints.size(); ++i) {
-                waypoints_maybe_flipped.add(waypoints.get(i).transformBy(flip));
-            }
-        }
-
-        // Create a trajectory from splines.
-        Trajectory<Pose2dWithCurvature> trajectory = TrajectoryUtil.trajectoryFromSplineWaypoints(
-                waypoints_maybe_flipped, kMaxDx, kMaxDy, kMaxDTheta);
-
-        if (reversed) {
-            List<Pose2dWithCurvature> flipped = new ArrayList<>(trajectory.length());
-            for (int i = 0; i < trajectory.length(); ++i) {
-                flipped.add(new Pose2dWithCurvature(trajectory.getState(i).getPose().transformBy(flip), -trajectory
-                        .getState(i).getCurvature(), trajectory.getState(i).getDCurvatureDs()));
-            }
-            trajectory = new Trajectory<>(flipped);
-        }
-        // Create the constraint that the robot must be able to traverse the trajectory without ever applying more
-        // than the specified voltage.
-        final DifferentialDriveDynamicsConstraint<Pose2dWithCurvature> drive_constraints = new
-                DifferentialDriveDynamicsConstraint<>(mDriveModel, max_voltage);
-        List<TimingConstraint<Pose2dWithCurvature>> all_constraints = new ArrayList<>();
-        all_constraints.add(drive_constraints);
-        if (constraints != null) {
-            all_constraints.addAll(constraints);
-        }
-        // Generate the timed trajectory.
-        Trajectory<TimedState<Pose2dWithCurvature>> timed_trajectory = TimingUtil.timeParameterizeTrajectory
-                (reversed, new
-                        DistanceView<>(trajectory), kMaxDx, all_constraints, start_vel, end_vel, max_vel, max_accel);
-        return timed_trajectory;
-    }
-
-    public Trajectory<TimedState<Rotation2d>> generateTurnInPlaceTrajectory( boolean reversed,
-                                                                                      Rotation2d initial_heading,
-                                                                                      Rotation2d final_heading,
-                                                                                      final List<TimingConstraint<Pose2dWithCurvature>> constraints,
-                                                                                      double end_vel,
-                                                                                      double max_vel,  // inches/s
-                                                                                      double max_accel,  // inches/s^2
-                                                                                      double max_voltage) {
-
-        Rotation2d rotation_delta = initial_heading.inverse().rotateBy(final_heading);
-
-        // Find distance necessary to move wheels to achieve change in heading
-        double distance = rotation_delta.getRadians() * Units.meters_to_inches(mRobotProfile.getWheelbaseRadiusMeters());
-        List<Pose2d> wheelTravel = Arrays.asList(new Pose2d(0.0, 0.0, new Rotation2d()),
-                                                new Pose2d(distance, 0.0, new Rotation2d()));
-
-        // Create the constraint that the robot must be able to traverse the trajectory without ever applying more
-        // than the specified voltage.
-        final DifferentialDriveDynamicsConstraint<Pose2dWithCurvature> drive_constraints = new
-                DifferentialDriveDynamicsConstraint<>(mDriveModel, max_voltage);
-        List<TimingConstraint<Pose2dWithCurvature>> all_constraints = new ArrayList<>();
-        all_constraints.add(drive_constraints);
-        if (constraints != null) {
-            all_constraints.addAll(constraints);
-        }
-
-        Trajectory<TimedState<Pose2dWithCurvature>> wheelTrajectory = generateTrajectory(reversed, wheelTravel, all_constraints, 0.0, end_vel, max_vel, max_accel, max_voltage);
-
-        Trajectory<TimedState<Rotation2d>> timedRotationDeltaTrajectory = TrajectoryUtil.distanceToRotation(wheelTrajectory,
-                                                                                                            initial_heading,
-                                                                                                            Units.meters_to_inches(mRobotProfile.getWheelbaseRadiusMeters()));
-
-        return timedRotationDeltaTrajectory;
     }
 
     @Override
@@ -222,13 +124,13 @@ public class DrivePlanner implements CSVWritable {
         }
 
         mDt = timestamp - mLastTime;
-
         // Advance the setpoint by the amount of time that has passed between this update and the last update.
         TrajectorySamplePoint<TimedState<Pose2dWithCurvature>> sample_point = mCurrentTrajectory.advance(mDt);
-        mSetpoint = sample_point.state();
-        mError = current_state.inverse().transformBy(mSetpoint.state().getPose());
 
         if (!mCurrentTrajectory.isDone()) {
+
+            mSetpoint = sample_point.state();
+            mError = current_state.inverse().transformBy(mSetpoint.state().getPose());
 
             DifferentialDrive.DriveDynamics dynamics;
 

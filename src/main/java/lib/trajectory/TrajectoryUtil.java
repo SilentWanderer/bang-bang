@@ -13,6 +13,9 @@ import java.util.Arrays;
 import java.util.List;
 
 public class TrajectoryUtil {
+
+    private static final Pose2d flip = Pose2d.fromRotation(new Rotation2d(-1, 0, false));
+
     public static <S extends IPose2d<S>> Trajectory<S> mirror(final Trajectory<S> trajectory) {
         List<S> waypoints = new ArrayList<>(trajectory.length());
         for (int i = 0; i < trajectory.length(); ++i) {
@@ -36,6 +39,15 @@ public class TrajectoryUtil {
             waypoints.add(trajectory.getState(i).transformBy(transform));
         }
         return new Trajectory<>(waypoints);
+    }
+
+    public static Trajectory<Pose2dWithCurvature> flip(final Trajectory<Pose2dWithCurvature> trajectory) {
+        List<Pose2dWithCurvature> flipped = new ArrayList<>(trajectory.length());
+        for (int i = 0; i < trajectory.length(); ++i) {
+            flipped.add(new Pose2dWithCurvature(trajectory.getState(i).getPose().transformBy(flip), -trajectory
+                    .getState(i).getCurvature(), trajectory.getState(i).getDCurvatureDs()));
+        }
+        return new Trajectory<>(flipped);
     }
 
     /**
@@ -130,7 +142,6 @@ public class TrajectoryUtil {
     public static Trajectory<TimedState<Rotation2d>> distanceToRotation(Trajectory<TimedState<Pose2dWithCurvature>> distanceTrajectory,
                                                                         Rotation2d initial_heading,
                                                                         double wheelbase_radius_inches) {
-        System.out.println("Converting");
         List<TimedState<Rotation2d>> timedRotationStates = new ArrayList<>();
 
         for(int i = 0; i < distanceTrajectory.length(); i++) {

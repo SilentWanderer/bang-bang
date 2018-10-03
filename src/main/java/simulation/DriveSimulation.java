@@ -41,11 +41,9 @@ public class DriveSimulation {
         TrajectoryIterator<TimedState<Rotation2d>> trajectoryIterator = new TrajectoryIterator<>(new TimedView<>(pTrajectoryToDrive));
         mDrivePlanner.setRotationTrajectory(trajectoryIterator);
 
-
-
         simulate();
 
-        System.out.println("Time driven: " + (time - startTime));
+        System.out.println("Trajectory time: " + (time - startTime));
 
         return time - startTime;
     }
@@ -62,7 +60,7 @@ public class DriveSimulation {
 
         simulate();
 
-        System.out.println("Total time: " + (time - startTime));
+        System.out.println("Trajectory time: " + (time - startTime));
 
         return time - startTime;
     }
@@ -81,8 +79,9 @@ public class DriveSimulation {
 
             if(Math.abs(output.left_feedforward_voltage) > 12.0 || Math.abs(output.right_feedforward_voltage) > 12.0) {
                 System.err.println("Warning: Output above 12.0 volts.");
-                output.left_velocity = Util.limit(output.left_velocity, 12.0);
-                output.right_velocity = Util.limit(output.right_velocity, 12.0);
+                // Limit velocity
+                output.left_velocity = Util.limit(output.left_velocity, 120.0);
+                output.right_velocity = Util.limit(output.right_velocity, 120.0);
             }
 
             // Our pose estimator expects input in inches, not radians. We happily oblige.
@@ -94,6 +93,10 @@ public class DriveSimulation {
 
             mRobotStateEstimator.update(time, mWheelDisplacement.left, mWheelDisplacement.right);
         }
+    }
+
+    public void setPose(Pose2d pRobotPose) {
+        mRobotStateEstimator.reset(0.0, pRobotPose);
     }
 
 }
