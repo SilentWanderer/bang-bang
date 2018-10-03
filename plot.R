@@ -11,13 +11,18 @@ fieldWidth <- 396
 fieldHeight <- 27 * 12
 
 fieldImage <- readPNG("/home/stephen/code/drivecontrol/field.png")
-lim <- par()
 
 tracking <- read.csv("/home/stephen/code/drivecontrol/tracking.csv", skip = 1)
 trajectory <- read.csv("/home/stephen/code/drivecontrol/trajectory.csv", skip = 1)
   
-plotField <- function() {
-  plot( c(0), c(0), type = "l", xlim = c(0, fieldWidth), ylim = c(0, fieldHeight), xlab = "X (inches)", ylab = "Y (inches)")
+plotField <- function() { 
+  par(xaxs = "i", yaxs = "i")
+  plot( c(0), c(0), type = "l", 
+        xlim = c(0, fieldWidth), ylim = c(0, fieldHeight),
+        xlab = "X (inches)", ylab = "Y (inches)",
+        asp = 1,
+        frame.plot = FALSE)
+  lim <- par()
   rasterImage(fieldImage, lim$usr[1], lim$usr[3], lim$usr[2], lim$usr[4])
 }
 
@@ -32,10 +37,13 @@ drawtrajectory <- function(trajectory_x, trajectory_y) {
 drawRobot <- function(width, height, x, y, heading) {
   filledrectangle(wx = width, wy = height, col = alpha(col = "purple", 0.5), 
                   mid = c(x, y), angle = toDegrees(heading))
-
 }
 
 animate <- function(tracking_x, tracking_y, tracking_heading, trajectory_x, trajectory_y) {
+  
+  plotField()
+  drawtrajectory(trajectory_x, trajectory_y)
+  drawtracking(tracking_x, tracking_y)
   
   for(i in 1:length(trajectory_x)) {
     plotField()
@@ -46,8 +54,8 @@ animate <- function(tracking_x, tracking_y, tracking_heading, trajectory_x, traj
 
 }
 
-saveHTML({
-  
+saveVideo({
+
   animate(tracking[, 1], tracking[, 2], tracking[, 3], trajectory[, 1], trajectory[, 2])
 
-}, interval = 0.01, ani.width = 800, ani.height = 800, htmlfile = "plot.html")
+}, ani.width = fieldWidth * 2, ani.height = fieldHeight * 2, interval = 0.01, video.name = "test.mp4")

@@ -16,7 +16,7 @@ stats 'tracking.csv'
 num_records = floor(STATS_records/100.)
 
 plot    'tracking.csv' with lines, \
-        'trajectory.csv' with points
+        'trajectory.csv' with lines
 
         #, \
         #'tracking.csv' using ((($1 + 19.33) * cos($3 * 3.141 / 180)) - (($2 + 16.955) * sin($3 * 3.141 / 180))):((($1 + 19.33) * sin($3 * 3.141 / 180)) + (($2 + 16.955) * cos($3 * 3.141 / 180)))
