@@ -62,7 +62,11 @@ public class TrackingSimulation {
     }
 
     public Trajectory<TimedState<Pose2dWithCurvature>> generate(List<Pose2d> waypoints) {
-        return mTrajectoryGenerator.generateTrajectory(false, waypoints, kTrajectoryConstraints, kMaxLinearVel, kMaxLinearAccel, kMaxVoltage);
+        return generate(false, waypoints);
+    }
+
+    public Trajectory<TimedState<Pose2dWithCurvature>> generate(boolean reversed, List<Pose2d> waypoints) {
+        return mTrajectoryGenerator.generateTrajectory(reversed, waypoints, kTrajectoryConstraints, kMaxLinearVel, kMaxLinearAccel, kMaxVoltage);
     }
 
     public Trajectory<TimedState<Rotation2d>> generate(double initialHeading, double finalHeading ) {

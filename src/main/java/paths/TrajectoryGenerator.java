@@ -51,7 +51,11 @@ public class TrajectoryGenerator {
             double max_accel,  // inches/s^2
             double max_voltage) {
 
-        List<Pose2d> waypoints_maybe_flipped = (reversed) ? WaypointUtil.flipWaypoints(waypoints) : waypoints;
+//        List<Pose2d> waypoints_maybe_flipped = (reversed) ? WaypointUtil.flipWaypoints(waypoints) : waypoints;
+        // We'll assume that any paths passed to us are pointing in the correct direction (the direction the robot is actually moving) already.
+        // In other words, we will consider the heading passed to us to be the heading w.r.t the BACK of the robot, NOT the front.
+        List<Pose2d> waypoints_maybe_flipped = waypoints;
+
 
         // Create a trajectory from splines.
         Trajectory<Pose2dWithCurvature> trajectory = TrajectoryUtil.trajectoryFromSplineWaypoints(
@@ -78,7 +82,6 @@ public class TrajectoryGenerator {
 
     /**
      * Generates rotation trajectories by calculating wheel distances needed to achieve angle, then converting the generated trajectories into rotation states.
-     * @param reversed
      * @param initial_heading
      * @param final_heading
      * @param constraints
