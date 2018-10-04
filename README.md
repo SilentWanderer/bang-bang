@@ -2,7 +2,7 @@
 
 This is Team 1885's incubating controls library for the 2018-2019 season.
 Nearly all of the code here has been imported from 254's own libraries, and is
-moslty untouched. 
+mostly untouched save some refactoring, documentation, and convenience functions.
 
 ## What did we add?
 
