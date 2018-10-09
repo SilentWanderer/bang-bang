@@ -1,7 +1,7 @@
 package simulation;
 
+import control.DriveMotionPlanner;
 import control.DriveOutput;
-import control.DrivePlanner;
 import lib.geometry.Pose2d;
 import lib.geometry.Pose2dWithCurvature;
 import lib.geometry.Rotation2d;
@@ -18,20 +18,20 @@ import odometry.RobotStateEstimator;
 public class DriveSimulation {
     
     ReflectingCSVWriter<Pose2d> mOdometryWriter;
-    ReflectingCSVWriter<DrivePlanner> mTrajectoryWriter;
+    ReflectingCSVWriter<DriveMotionPlanner> mTrajectoryWriter;
     
     RobotStateEstimator mRobotStateEstimator;
-    DrivePlanner mDrivePlanner;
+    DriveMotionPlanner mDriveMotionPlanner;
     WheelState mWheelDisplacement = new WheelState();
     private final double kDt;
     double time = 0.0;
 
 
-    public DriveSimulation(ReflectingCSVWriter<Pose2d> pOdometryWriter, ReflectingCSVWriter<DrivePlanner> pTrajectoryWriter, RobotStateEstimator pRobotStateEstimator, DrivePlanner pDrivePlanner, double pDt) {
+    public DriveSimulation(ReflectingCSVWriter<Pose2d> pOdometryWriter, ReflectingCSVWriter<DriveMotionPlanner> pTrajectoryWriter, RobotStateEstimator pRobotStateEstimator, DriveMotionPlanner pDriveMotionPlanner, double pDt) {
         mOdometryWriter = pOdometryWriter;
         mTrajectoryWriter = pTrajectoryWriter;
         mRobotStateEstimator = pRobotStateEstimator;
-        mDrivePlanner = pDrivePlanner;
+        mDriveMotionPlanner = pDriveMotionPlanner;
         kDt = pDt;
     }
 
@@ -39,7 +39,7 @@ public class DriveSimulation {
         double startTime = time;
 
         TrajectoryIterator<TimedState<Rotation2d>> trajectoryIterator = new TrajectoryIterator<>(new TimedView<>(pTrajectoryToDrive));
-        mDrivePlanner.setRotationTrajectory(trajectoryIterator);
+        mDriveMotionPlanner.setRotationTrajectory(trajectoryIterator);
 
         simulate();
 
@@ -56,7 +56,7 @@ public class DriveSimulation {
         }
 
         TrajectoryIterator<TimedState<Pose2dWithCurvature>> trajectoryIterator = new TrajectoryIterator<>(new TimedView<>(pTrajectoryToDrive));
-        mDrivePlanner.setTrajectory(trajectoryIterator);
+        mDriveMotionPlanner.setTrajectory(trajectoryIterator);
 
         simulate();
 
@@ -66,12 +66,12 @@ public class DriveSimulation {
     }
 
     private void simulate() {
-        for (; !mDrivePlanner.isDone(); time += kDt) {
+        for (; !mDriveMotionPlanner.isDone(); time += kDt) {
 
             Pose2d currentPose = mRobotStateEstimator.getRobotState().getLatestFieldToVehiclePose();
-            DriveOutput output = mDrivePlanner.update(time, currentPose);
+            DriveOutput output = mDriveMotionPlanner.update(time, currentPose);
 
-            mTrajectoryWriter.add(mDrivePlanner);
+            mTrajectoryWriter.add(mDriveMotionPlanner);
             mOdometryWriter.add(currentPose);
 
             mTrajectoryWriter.flush();
@@ -85,7 +85,7 @@ public class DriveSimulation {
             }
 
             // Our pose estimator expects input in inches, not radians. We happily oblige.
-            output = output.rads_to_inches(Units.meters_to_inches(mDrivePlanner.getRobotProfile().getWheelRadiusMeters()));
+            output = output.rads_to_inches(Units.meters_to_inches(mDriveMotionPlanner.getRobotProfile().getWheelRadiusMeters()));
 
             // Update the total distance each wheel has traveled, in inches.
             mWheelDisplacement = new WheelState(mWheelDisplacement.left + (output.left_velocity * kDt) + (0.5 * output.left_accel * kDt * kDt),

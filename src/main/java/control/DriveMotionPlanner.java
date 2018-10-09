@@ -25,19 +25,19 @@ import java.util.Arrays;
 import java.util.List;
 
 /**
- * DrivePlanner is responsible for generating both trajectories and the feedforward commands needed to follow them.
+ * DriveMotionPlanner is responsible for generating both trajectories and the feedforward commands needed to follow them.
  * Trajectory followers are entirely modular and can be switched at-will.
  */
-public class DrivePlanner implements CSVWritable {
+public class DriveMotionPlanner implements CSVWritable {
     
     private final RobotProfile mRobotProfile;
     private final DCMotorTransmission mDriveTransmission;
     private final DifferentialDrive mDriveModel;
 
-    private final AController mController;
-    private final PlannerMode mPlannerMode;
+    private AController mController;
+    private PlannerMode mPlannerMode;
     
-    public DrivePlanner(RobotProfile pRobotProfile, PlannerMode pPlannerMode) {
+    public DriveMotionPlanner(RobotProfile pRobotProfile, PlannerMode pPlannerMode) {
         mRobotProfile = pRobotProfile;
 
         // Invert our feedforward constants. Torque constant is kT = I * kA, where I is the robot modeled as a cylindrical load on the transmission and kA is the inverted feedforward.
@@ -118,7 +118,7 @@ public class DrivePlanner implements CSVWritable {
         // No trajectory? Do nothing!
         if (mCurrentTrajectory == null) return new DriveOutput();
 
-        // If DrivePlanner has been reset and we haven't started the trajectory, set it to our timestamp.
+        // If DriveMotionPlanner has been reset and we haven't started the trajectory, set it to our timestamp.
         if (mCurrentTrajectory.getProgress() == 0.0 && !Double.isFinite(mLastTime)) {
             mLastTime = timestamp;
         }
@@ -211,6 +211,10 @@ public class DrivePlanner implements CSVWritable {
 
     public PlannerMode getPlannerMode() {
         return mPlannerMode;
+    }
+
+    public void setPlannerMode(PlannerMode pPlannerMode) {
+        mPlannerMode = pPlannerMode;
     }
 
 }

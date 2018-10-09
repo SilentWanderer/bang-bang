@@ -11,9 +11,9 @@ public class RobotStateEstimator {
     private double mLastLeftPosition, mLastRightPosition, mLastTimestamp;
 
 
-    public RobotStateEstimator(RobotState pRobotState, Kinematics pKinematicModel) {
-        mRobotState = pRobotState;
+    public RobotStateEstimator(Kinematics pKinematicModel) {
         mKinematicModel = pKinematicModel;
+        mRobotState = new RobotState(mKinematicModel);
         reset();
     }
 

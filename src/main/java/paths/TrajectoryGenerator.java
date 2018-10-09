@@ -1,13 +1,12 @@
 package paths;
 
-import control.DrivePlanner;
+import control.DriveMotionPlanner;
 import lib.geometry.Pose2d;
 import lib.geometry.Pose2dWithCurvature;
 import lib.geometry.Rotation2d;
 import lib.trajectory.DistanceView;
 import lib.trajectory.Trajectory;
 import lib.trajectory.TrajectoryUtil;
-import lib.trajectory.WaypointUtil;
 import lib.trajectory.timing.DifferentialDriveDynamicsConstraint;
 import lib.trajectory.timing.TimedState;
 import lib.trajectory.timing.TimingConstraint;
@@ -25,10 +24,10 @@ public class TrajectoryGenerator {
     private static final double kMaxDy = 0.25;
     private static final double kMaxDTheta = Math.toRadians(5.0);
 
-    private DrivePlanner mDrivePlanner;
+    private DriveMotionPlanner mDriveMotionPlanner;
 
-    public TrajectoryGenerator(DrivePlanner pDrivePlanner) {
-        mDrivePlanner = pDrivePlanner;
+    public TrajectoryGenerator(DriveMotionPlanner pDriveMotionPlanner) {
+        mDriveMotionPlanner = pDriveMotionPlanner;
     }
 
     public Trajectory<TimedState<Pose2dWithCurvature>> generateTrajectory(
@@ -66,7 +65,7 @@ public class TrajectoryGenerator {
         // Create the constraint that the robot must be able to traverse the trajectory without ever applying more
         // than the specified voltage.
         final DifferentialDriveDynamicsConstraint<Pose2dWithCurvature> drive_constraints = new
-                DifferentialDriveDynamicsConstraint<>(mDrivePlanner.getDriveModel(), max_voltage);
+                DifferentialDriveDynamicsConstraint<>(mDriveMotionPlanner.getDriveModel(), max_voltage);
         List<TimingConstraint<Pose2dWithCurvature>> all_constraints = new ArrayList<>();
         all_constraints.add(drive_constraints);
         if (constraints != null) {
@@ -102,14 +101,14 @@ public class TrajectoryGenerator {
         Rotation2d rotation_delta = initial_heading.inverse().rotateBy(final_heading);
 
         // Find distance necessary to move wheels to achieve change in heading
-        double distance = rotation_delta.getRadians() * Units.meters_to_inches(mDrivePlanner.getRobotProfile().getWheelbaseRadiusMeters());
+        double distance = rotation_delta.getRadians() * Units.meters_to_inches(mDriveMotionPlanner.getRobotProfile().getWheelbaseRadiusMeters());
         List<Pose2d> wheelTravel = Arrays.asList(new Pose2d(0.0, 0.0, new Rotation2d()),
                 new Pose2d(distance, 0.0, new Rotation2d()));
 
         // Create the constraint that the robot must be able to traverse the trajectory without ever applying more
         // than the specified voltage.
         final DifferentialDriveDynamicsConstraint<Pose2dWithCurvature> drive_constraints = new
-                DifferentialDriveDynamicsConstraint<>(mDrivePlanner.getDriveModel(), max_voltage);
+                DifferentialDriveDynamicsConstraint<>(mDriveMotionPlanner.getDriveModel(), max_voltage);
         List<TimingConstraint<Pose2dWithCurvature>> all_constraints = new ArrayList<>();
         all_constraints.add(drive_constraints);
         if (constraints != null) {
@@ -120,7 +119,7 @@ public class TrajectoryGenerator {
 
         Trajectory<TimedState<Rotation2d>> timedRotationDeltaTrajectory = TrajectoryUtil.distanceToRotation(wheelTrajectory,
                 initial_heading,
-                Units.meters_to_inches(mDrivePlanner.getRobotProfile().getWheelbaseRadiusMeters()));
+                Units.meters_to_inches(mDriveMotionPlanner.getRobotProfile().getWheelbaseRadiusMeters()));
 
         return timedRotationDeltaTrajectory;
     }

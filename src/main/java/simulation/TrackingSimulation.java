@@ -1,10 +1,9 @@
 package simulation;
 
-import control.DrivePlanner;
+import control.DriveMotionPlanner;
 import lib.geometry.Pose2d;
 import lib.geometry.Pose2dWithCurvature;
 import lib.geometry.Rotation2d;
-import lib.geometry.Translation2d;
 import lib.trajectory.Trajectory;
 import lib.trajectory.timing.CentripetalAccelerationConstraint;
 import lib.trajectory.timing.TimedState;
@@ -15,7 +14,6 @@ import odometry.RobotState;
 import odometry.RobotStateEstimator;
 import paths.TrajectoryGenerator;
 import paths.autos.NearScaleAuto;
-import paths.autos.StartingPoses;
 import profiles.LockdownProfile;
 import profiles.RobotProfile;
 
@@ -27,10 +25,10 @@ public class TrackingSimulation {
     private final double kDt = 1.0 / 100.0;
 
     private RobotProfile mRobotProfile = new LockdownProfile();
-    private DrivePlanner mDrivePlanner = new DrivePlanner(mRobotProfile, DrivePlanner.PlannerMode.FEEDBACK);
+    private DriveMotionPlanner mDriveMotionPlanner = new DriveMotionPlanner(mRobotProfile, DriveMotionPlanner.PlannerMode.FEEDBACK);
     private Kinematics mKinematicModel = new Kinematics(mRobotProfile);
     private RobotState mRobotState = new RobotState(mKinematicModel);
-    private RobotStateEstimator mRobotStateEstimator = new RobotStateEstimator(mRobotState, mKinematicModel);
+    private RobotStateEstimator mRobotStateEstimator = new RobotStateEstimator(mKinematicModel);
 
 
     // in / s
@@ -41,13 +39,13 @@ public class TrackingSimulation {
 
     private final List<TimingConstraint<Pose2dWithCurvature>> kTrajectoryConstraints = Arrays.asList(new CentripetalAccelerationConstraint(kMaxCentripetalAccel));
 
-    private TrajectoryGenerator mTrajectoryGenerator = new TrajectoryGenerator(mDrivePlanner);
+    private TrajectoryGenerator mTrajectoryGenerator = new TrajectoryGenerator(mDriveMotionPlanner);
 
     public void simulate() {
 
         ReflectingCSVWriter<Pose2d> csvPoseWriter = new ReflectingCSVWriter<>("tracking.csv", Pose2d.class);
-        ReflectingCSVWriter<DrivePlanner> csvDrivePlanner = new ReflectingCSVWriter<>("trajectory.csv", DrivePlanner.class);
-        DriveSimulation driveSimulation = new DriveSimulation(csvPoseWriter, csvDrivePlanner, mRobotStateEstimator, mDrivePlanner, kDt);
+        ReflectingCSVWriter<DriveMotionPlanner> csvDrivePlanner = new ReflectingCSVWriter<>("trajectory.csv", DriveMotionPlanner.class);
+        DriveSimulation driveSimulation = new DriveSimulation(csvPoseWriter, csvDrivePlanner, mRobotStateEstimator, mDriveMotionPlanner, kDt);
 
         double timeDriven = 0.0;
 
