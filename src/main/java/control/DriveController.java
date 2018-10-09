@@ -76,4 +76,19 @@ public class DriveController {
         return this;
     }
 
+    public boolean isDone() {
+        return mDriveMotionPlanner.isDone();
+    }
+
+    public DriveMotionPlanner getDriveMotionPlanner() {
+        return mDriveMotionPlanner;
+    }
+
+    public RobotStateEstimator getRobotStateEstimator() {
+        return mRobotStateEstimator;
+    }
+
+    public RobotProfile getRobotProfile() {
+        return mRobotProfile;
+    }
 }

@@ -19,7 +19,7 @@ if (plot_supported) {
             doLast {
                 exec {
                     workingDir new File(project.rootDir, "")
-                    commandLine 'gnuplot', '-e', "set loadpath \"${loadpath.absolutePath.replaceAll("\\", '/')}\";load \"settings.gp\"", file.absolutePath
+                    commandLine 'gnuplot', '-e', "set loadpath \"${loadpath.absolutePath}\";load \"settings.gp\"", file.absolutePath
                 }
             }
         }

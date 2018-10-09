@@ -1,5 +1,6 @@
 package simulation;
 
+import control.DriveController;
 import control.DriveMotionPlanner;
 import control.DriveOutput;
 import lib.geometry.Pose2d;
@@ -14,14 +15,14 @@ import lib.util.ReflectingCSVWriter;
 import lib.util.Units;
 import lib.util.Util;
 import odometry.RobotStateEstimator;
+import profiles.LockdownProfile;
 
 public class DriveSimulation {
     
     ReflectingCSVWriter<Pose2d> mOdometryWriter;
     ReflectingCSVWriter<DriveMotionPlanner> mTrajectoryWriter;
     
-    RobotStateEstimator mRobotStateEstimator;
-    DriveMotionPlanner mDriveMotionPlanner;
+    DriveController mDriveController;
     WheelState mWheelDisplacement = new WheelState();
     private final double kDt;
     double time = 0.0;
@@ -30,16 +31,14 @@ public class DriveSimulation {
     public DriveSimulation(ReflectingCSVWriter<Pose2d> pOdometryWriter, ReflectingCSVWriter<DriveMotionPlanner> pTrajectoryWriter, RobotStateEstimator pRobotStateEstimator, DriveMotionPlanner pDriveMotionPlanner, double pDt) {
         mOdometryWriter = pOdometryWriter;
         mTrajectoryWriter = pTrajectoryWriter;
-        mRobotStateEstimator = pRobotStateEstimator;
-        mDriveMotionPlanner = pDriveMotionPlanner;
+        mDriveController = new DriveController(new LockdownProfile(), pDt);
         kDt = pDt;
     }
 
     public double driveTrajectory(Trajectory<TimedState<Rotation2d>> pTrajectoryToDrive) {
         double startTime = time;
 
-        TrajectoryIterator<TimedState<Rotation2d>> trajectoryIterator = new TrajectoryIterator<>(new TimedView<>(pTrajectoryToDrive));
-        mDriveMotionPlanner.setRotationTrajectory(trajectoryIterator);
+        mDriveController.setRotationTrajectory(pTrajectoryToDrive);
 
         simulate();
 
@@ -51,12 +50,7 @@ public class DriveSimulation {
     public double driveTrajectory(Trajectory<TimedState<Pose2dWithCurvature>> pTrajectoryToDrive, boolean pResetPoseToTrajectoryStart) {
         double startTime = time;
 
-        if(pResetPoseToTrajectoryStart) {
-            mRobotStateEstimator.reset(pTrajectoryToDrive.getFirstState().t(), pTrajectoryToDrive.getFirstState().state().getPose());
-        }
-
-        TrajectoryIterator<TimedState<Pose2dWithCurvature>> trajectoryIterator = new TrajectoryIterator<>(new TimedView<>(pTrajectoryToDrive));
-        mDriveMotionPlanner.setTrajectory(trajectoryIterator);
+        mDriveController.setTrajectory(pTrajectoryToDrive, pResetPoseToTrajectoryStart);
 
         simulate();
 
@@ -66,12 +60,12 @@ public class DriveSimulation {
     }
 
     private void simulate() {
-        for (; !mDriveMotionPlanner.isDone(); time += kDt) {
+        for (; !mDriveController.isDone(); time += kDt) {
 
-            Pose2d currentPose = mRobotStateEstimator.getRobotState().getLatestFieldToVehiclePose();
-            DriveOutput output = mDriveMotionPlanner.update(time, currentPose);
+            Pose2d currentPose = mDriveController.getRobotStateEstimator().getRobotState().getLatestFieldToVehiclePose();
+            DriveOutput output = mDriveController.getOutput(time, mWheelDisplacement.left, mWheelDisplacement.right);
 
-            mTrajectoryWriter.add(mDriveMotionPlanner);
+            mTrajectoryWriter.add(mDriveController.getDriveMotionPlanner());
             mOdometryWriter.add(currentPose);
 
             mTrajectoryWriter.flush();
@@ -85,18 +79,17 @@ public class DriveSimulation {
             }
 
             // Our pose estimator expects input in inches, not radians. We happily oblige.
-            output = output.rads_to_inches(Units.meters_to_inches(mDriveMotionPlanner.getRobotProfile().getWheelRadiusMeters()));
+            output = output.rads_to_inches(Units.meters_to_inches(mDriveController.getRobotProfile().getWheelRadiusMeters()));
 
             // Update the total distance each wheel has traveled, in inches.
             mWheelDisplacement = new WheelState(mWheelDisplacement.left + (output.left_velocity * kDt) + (0.5 * output.left_accel * kDt * kDt),
                     mWheelDisplacement.right + (output.right_velocity * kDt) + (0.5 * output.right_accel * kDt * kDt));
 
-            mRobotStateEstimator.update(time, mWheelDisplacement.left, mWheelDisplacement.right);
         }
     }
 
     public void setPose(Pose2d pRobotPose) {
-        mRobotStateEstimator.reset(0.0, pRobotPose);
+        mDriveController.getRobotStateEstimator().reset(0.0, pRobotPose);
     }
 
 }
