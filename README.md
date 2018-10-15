@@ -17,3 +17,4 @@ mostly untouched save some refactoring, documentation, and convenience functions
 - Modular path/trajectory controllers
 - A posture stabilization controller
 - Some more drive characterization code
+- Streamlined documentation
