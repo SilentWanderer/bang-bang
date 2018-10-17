@@ -176,12 +176,14 @@ public class DriveMotionPlanner implements CSVWritable {
             }
 
             prev_velocity_ = dynamics.chassis_velocity;
-            mLastTime = timestamp;
 
         } else {
             // TODO Possibly switch to a pose stabilizing controller?
             mOutput = new DriveOutput();
         }
+
+        mLastTime = timestamp;
+
         return mOutput;
     }
 
