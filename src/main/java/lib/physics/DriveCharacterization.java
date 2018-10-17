@@ -11,6 +11,10 @@ public class DriveCharacterization {
         public double ks; //voltage needed to break static friction
         public double kv;
         public double ka;
+
+        public String toString() {
+            return String.format("kV: %s\nkA: %s\nkS: %s\n", kv, ka, ks);
+        }
     }
 
     public static class VelocityDataPoint {
