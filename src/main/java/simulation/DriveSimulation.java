@@ -7,15 +7,18 @@ import lib.geometry.Pose2d;
 import lib.geometry.Pose2dWithCurvature;
 import lib.geometry.Rotation2d;
 import lib.physics.WheelState;
-import lib.trajectory.TimedView;
 import lib.trajectory.Trajectory;
-import lib.trajectory.TrajectoryIterator;
 import lib.trajectory.timing.TimedState;
 import lib.util.ReflectingCSVWriter;
 import lib.util.Units;
 import lib.util.Util;
 import odometry.RobotStateEstimator;
 import profiles.LockdownProfile;
+import ui.FieldWindow;
+import ui.ISimulationListener;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public class DriveSimulation {
     
@@ -27,11 +30,12 @@ public class DriveSimulation {
     private final double kDt;
     double time = 0.0;
 
+    List<ISimulationListener> mSimulationListeners = new ArrayList<>();
 
-    public DriveSimulation(ReflectingCSVWriter<Pose2d> pOdometryWriter, ReflectingCSVWriter<DriveMotionPlanner> pTrajectoryWriter, RobotStateEstimator pRobotStateEstimator, DriveMotionPlanner pDriveMotionPlanner, double pDt) {
+    public DriveSimulation(DriveController pDriveController, ReflectingCSVWriter<Pose2d> pOdometryWriter, ReflectingCSVWriter<DriveMotionPlanner> pTrajectoryWriter, double pDt) {
+        mDriveController = pDriveController;
         mOdometryWriter = pOdometryWriter;
         mTrajectoryWriter = pTrajectoryWriter;
-        mDriveController = new DriveController(new LockdownProfile(), pDt);
         kDt = pDt;
     }
 
@@ -71,6 +75,8 @@ public class DriveSimulation {
             mTrajectoryWriter.flush();
             mOdometryWriter.flush();
 
+            mSimulationListeners.forEach(l -> l.update(time, currentPose));
+
             if(Math.abs(output.left_feedforward_voltage) > 12.0 || Math.abs(output.right_feedforward_voltage) > 12.0) {
                 System.err.println("Warning: Output above 12.0 volts.");
                 // Limit velocity
@@ -86,6 +92,10 @@ public class DriveSimulation {
                     mWheelDisplacement.right + (output.right_velocity * kDt) + (0.5 * output.right_accel * kDt * kDt));
 
         }
+    }
+
+    public void addListener(ISimulationListener pListener) {
+        mSimulationListeners.add(pListener);
     }
 
     public void setPose(Pose2d pRobotPose) {
