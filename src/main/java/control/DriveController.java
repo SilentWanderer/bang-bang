@@ -42,6 +42,12 @@ public class DriveController {
         this.mRobotStateEstimator = new RobotStateEstimator(mKinematicModel);
     }
 
+    public DriveOutput getOutput(double pTimestamp, double pLeftAbsolutePos, double pRightAbsolutePos, double pHeadingDegrees) {
+        mRobotStateEstimator.update(pTimestamp, pLeftAbsolutePos, pRightAbsolutePos, Rotation2d.fromDegrees(pHeadingDegrees));
+
+        return mDriveMotionPlanner.update(pTimestamp, mRobotStateEstimator.getRobotState().getLatestFieldToVehiclePose());
+    }
+
     public DriveOutput getOutput(double pTimestamp, double pLeftAbsolutePos, double pRightAbsolutePos) {
         mRobotStateEstimator.update(pTimestamp, pLeftAbsolutePos, pRightAbsolutePos);
 
