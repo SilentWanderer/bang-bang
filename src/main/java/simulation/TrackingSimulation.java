@@ -50,9 +50,9 @@ public class TrackingSimulation {
         double timeDriven = 0.0;
 
         timeDriven += driveSimulation.driveTrajectory(generate(NearScaleAuto.kToScalePath), true);
-        timeDriven += driveSimulation.driveTrajectory(generate(NearScaleAuto.kAtScale.rotation_, NearScaleAuto.kTurnFromScaleToFirstCube.rotation_));
+        timeDriven += driveSimulation.driveTrajectory(generate(NearScaleAuto.kAtScale.getRotation(), NearScaleAuto.kTurnFromScaleToFirstCube.getRotation()));
         timeDriven += driveSimulation.driveTrajectory(generate(NearScaleAuto.kScaleToFirstCubePath), false);
-        timeDriven += driveSimulation.driveTrajectory(generate(NearScaleAuto.kScaleToFirstCube.rotation_, NearScaleAuto.kTurnFromFirstCubeToScale.rotation_));
+        timeDriven += driveSimulation.driveTrajectory(generate(NearScaleAuto.kScaleToFirstCube.getRotation(), NearScaleAuto.kTurnFromFirstCubeToScale.getRotation()));
         timeDriven += driveSimulation.driveTrajectory(generate(NearScaleAuto.kFirstCubeToScalePath), false);
 
         System.out.println("Time Driven:" + timeDriven);

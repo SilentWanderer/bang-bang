@@ -139,7 +139,7 @@ public class DriveMotionPlanner implements CSVWritable {
                 dynamics = mDriveModel.solveInverseDynamics(new ChassisState(0.0, mSetpoint.velocity()),
                                                             new ChassisState(0.0, mSetpoint.acceleration()));
                 // Modify our setpoint to our current (x,y) position. This way we can use the controller without having it compensate for cross-track error.
-                mSetpoint = new TimedState<>(new Pose2dWithCurvature(current_state.translation_,
+                mSetpoint = new TimedState<>(new Pose2dWithCurvature(current_state.getTranslation(),
                                                                                         mSetpoint.state().getRotation(),
                                                                                         Double.POSITIVE_INFINITY),
                                                                                         mSetpoint.t(), mSetpoint.velocity(), mSetpoint.acceleration());
