@@ -3,25 +3,17 @@ package control;
 import lib.geometry.Pose2d;
 import lib.geometry.Pose2dWithCurvature;
 import lib.geometry.Rotation2d;
-import lib.geometry.State;
 import lib.physics.ChassisState;
 import lib.physics.DCMotorTransmission;
 import lib.physics.DifferentialDrive;
 import lib.trajectory.*;
-import lib.trajectory.timing.DifferentialDriveDynamicsConstraint;
 import lib.trajectory.timing.TimedState;
-import lib.trajectory.timing.TimingConstraint;
-import lib.trajectory.timing.TimingUtil;
 import lib.util.CSVWritable;
-import lib.util.ReflectingCSVWriter;
 import lib.util.Units;
-import lib.util.Util;
 import profiles.RobotProfile;
 
-import java.sql.Time;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -31,7 +23,7 @@ import java.util.List;
 public class DriveMotionPlanner implements CSVWritable {
     
     private final RobotProfile mRobotProfile;
-    private final DCMotorTransmission mDriveTransmission;
+    private final DCMotorTransmission mLeftDriveTransmission, mRightDriveTransmission;
     private final DifferentialDrive mDriveModel;
 
     private AController mController;
@@ -41,9 +33,10 @@ public class DriveMotionPlanner implements CSVWritable {
         mRobotProfile = pRobotProfile;
 
         // Invert our feedforward constants. Torque constant is kT = I * kA, where I is the robot modeled as a cylindrical load on the transmission and kA is the inverted feedforward.
-        mDriveTransmission = new DCMotorTransmission(1 / mRobotProfile.getVoltPerSpeed(), mRobotProfile.getCylindricalMoi() / mRobotProfile.getVoltPerAccel(), mRobotProfile.getFrictionVoltage());
+        mLeftDriveTransmission = new DCMotorTransmission(1 / mRobotProfile.getLeftVoltPerSpeed(), mRobotProfile.getCylindricalMoi() / mRobotProfile.getLeftVoltPerAccel(), mRobotProfile.getLeftFrictionVoltage());
+        mRightDriveTransmission = new DCMotorTransmission(1 / mRobotProfile.getRightVoltPerSpeed(), mRobotProfile.getCylindricalMoi() / mRobotProfile.getRightVoltPerAccel(), mRobotProfile.getRightFrictionVoltage());
         mDriveModel = new DifferentialDrive(mRobotProfile.getLinearInertia(), mRobotProfile.getAngularInertia(), mRobotProfile.getAngularDrag(), mRobotProfile.getWheelRadiusMeters(), mRobotProfile.getWheelbaseRadiusMeters(),
-                mDriveTransmission, mDriveTransmission);
+                mLeftDriveTransmission, mRightDriveTransmission);
         mController = new NonlinearFeedbackController(mDriveModel);
         mPlannerMode = pPlannerMode;
     }
@@ -203,8 +196,8 @@ public class DriveMotionPlanner implements CSVWritable {
         return mRobotProfile;
     }
 
-    public DCMotorTransmission getDriveTransmission() {
-        return mDriveTransmission;
+    public DCMotorTransmission getLeftDriveTransmission() {
+        return mLeftDriveTransmission;
     }
 
     public DifferentialDrive getDriveModel() {

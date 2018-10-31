@@ -6,9 +6,13 @@ package profiles;
 public interface RobotProfile {
 
     // Volts, meters
-    double getVoltPerAccel();
-    double getVoltPerSpeed();
-    double getFrictionVoltage();
+    double getLeftVoltPerAccel();
+    double getLeftVoltPerSpeed();
+    double getLeftFrictionVoltage();
+
+    double getRightVoltPerAccel();
+    double getRightVoltPerSpeed();
+    double getRightFrictionVoltage();
 
     // Meters
     double getWheelRadiusMeters();

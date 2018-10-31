@@ -8,17 +8,32 @@ import lib.util.Units;
 public class LockdownProfile implements RobotProfile {
 
     @Override
-    public double getVoltPerAccel() {
+    public double getLeftVoltPerAccel() {
         return 0.012;
     }
 
     @Override
-    public double getVoltPerSpeed() {
+    public double getLeftVoltPerSpeed() {
         return 0.135;
     }
 
     @Override
-    public double getFrictionVoltage() {
+    public double getLeftFrictionVoltage() {
+        return 1.055;
+    }
+
+    @Override
+    public double getRightVoltPerAccel() {
+        return 0.012;
+    }
+
+    @Override
+    public double getRightVoltPerSpeed() {
+        return 0.135;
+    }
+
+    @Override
+    public double getRightFrictionVoltage() {
         return 1.055;
     }
 
