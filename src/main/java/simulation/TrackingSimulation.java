@@ -1,6 +1,9 @@
 package simulation;
 
+import control.DriveController;
 import control.DriveMotionPlanner;
+import javafx.application.Application;
+import javafx.stage.Stage;
 import lib.geometry.Pose2d;
 import lib.geometry.Pose2dWithCurvature;
 import lib.geometry.Rotation2d;
@@ -13,22 +16,21 @@ import odometry.Kinematics;
 import odometry.RobotState;
 import odometry.RobotStateEstimator;
 import paths.TrajectoryGenerator;
+import paths.autos.FarScaleAuto;
 import paths.autos.NearScaleAuto;
 import profiles.LockdownProfile;
 import profiles.RobotProfile;
+import ui.FieldWindow;
 
+import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.List;
 
 public class TrackingSimulation {
 
-    private final double kDt = 1.0 / 100.0;
+    private final double kDt;
 
-    private RobotProfile mRobotProfile = new LockdownProfile();
-    private DriveMotionPlanner mDriveMotionPlanner = new DriveMotionPlanner(mRobotProfile, DriveMotionPlanner.PlannerMode.FEEDBACK);
-    private Kinematics mKinematicModel = new Kinematics(mRobotProfile);
-    private RobotState mRobotState = new RobotState(mKinematicModel);
-    private RobotStateEstimator mRobotStateEstimator = new RobotStateEstimator(mKinematicModel);
+    private DriveController mDriveController = new DriveController(new LockdownProfile(), 0.01);
 
 
     // in / s
@@ -39,13 +41,20 @@ public class TrackingSimulation {
 
     private final List<TimingConstraint<Pose2dWithCurvature>> kTrajectoryConstraints = Arrays.asList(new CentripetalAccelerationConstraint(kMaxCentripetalAccel));
 
-    private TrajectoryGenerator mTrajectoryGenerator = new TrajectoryGenerator(mDriveMotionPlanner);
+    private ReflectingCSVWriter<Pose2d> csvPoseWriter;
+    private ReflectingCSVWriter<DriveMotionPlanner> csvDrivePlanner;
+
+    private TrajectoryGenerator mTrajectoryGenerator = new TrajectoryGenerator(mDriveController.getDriveMotionPlanner());
+    private DriveSimulation mDriveSimulation;
+
+    public TrackingSimulation(double pDt) {
+        kDt = pDt;
+        csvPoseWriter = new ReflectingCSVWriter<>("tracking.csv", Pose2d.class);
+        csvDrivePlanner = new ReflectingCSVWriter<>("trajectory.csv", DriveMotionPlanner.class);
+        mDriveSimulation = new DriveSimulation(mDriveController, csvPoseWriter, csvDrivePlanner, kDt);
+    }
 
     public void simulate() {
-
-        ReflectingCSVWriter<Pose2d> csvPoseWriter = new ReflectingCSVWriter<>("tracking.csv", Pose2d.class);
-        ReflectingCSVWriter<DriveMotionPlanner> csvDrivePlanner = new ReflectingCSVWriter<>("trajectory.csv", DriveMotionPlanner.class);
-        DriveSimulation driveSimulation = new DriveSimulation(csvPoseWriter, csvDrivePlanner, mRobotStateEstimator, mDriveMotionPlanner, kDt);
 
         double timeDriven = 0.0;
 
@@ -73,6 +82,14 @@ public class TrackingSimulation {
 
     public Trajectory<TimedState<Rotation2d>> generate(Rotation2d initialHeading, Rotation2d finalHeading ) {
         return mTrajectoryGenerator.generateTurnInPlaceTrajectory(initialHeading, finalHeading, kTrajectoryConstraints,0.0, kMaxLinearVel, kMaxLinearAccel, kMaxVoltage);
+    }
+
+    public DriveSimulation getDriveSimulation() {
+        return mDriveSimulation;
+    }
+
+    public RobotStateEstimator getRobotStateEstimator() {
+        return mDriveController.getRobotStateEstimator();
     }
 
 }

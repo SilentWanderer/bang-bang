@@ -1,11 +1,14 @@
 package odometry;
 
+import javafx.geometry.Pos;
 import lib.geometry.Pose2d;
 import lib.geometry.Rotation2d;
 import lib.geometry.Twist2d;
 import lib.util.InterpolatingDouble;
 import lib.util.InterpolatingTreeMap;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -107,6 +110,14 @@ public class RobotState {
         final Twist2d delta = mKinematicModel.forwardKinematics(left_encoder_delta_distance, right_encoder_delta_distance);
         distance_driven_ += delta.dx; //do we care about dy here?
         return delta;
+    }
+
+    public List<Pose2d> getRecentPoses() {
+        List<Pose2d> poseList = new ArrayList<>();
+        for(Map.Entry<InterpolatingDouble, Pose2d> poseEntry : field_to_vehicle_.entrySet()) {
+            poseList.add(poseEntry.getValue());
+        }
+        return poseList;
     }
 
     public synchronized double getDistanceDriven() {
