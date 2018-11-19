@@ -44,7 +44,7 @@ public class TrackingSimulation {
     private ReflectingCSVWriter<Pose2d> csvPoseWriter;
     private ReflectingCSVWriter<DriveMotionPlanner> csvDrivePlanner;
 
-    private TrajectoryGenerator mTrajectoryGenerator = new TrajectoryGenerator(mDriveController.getDriveMotionPlanner());
+    private TrajectoryGenerator mTrajectoryGenerator = new TrajectoryGenerator(mDriveController);
     private DriveSimulation mDriveSimulation;
 
     public TrackingSimulation(double pDt) {

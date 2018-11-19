@@ -1,5 +1,6 @@
 package paths;
 
+import control.DriveController;
 import control.DriveMotionPlanner;
 import lib.geometry.Pose2d;
 import lib.geometry.Pose2dWithCurvature;
@@ -12,6 +13,7 @@ import lib.trajectory.timing.TimedState;
 import lib.trajectory.timing.TimingConstraint;
 import lib.trajectory.timing.TimingUtil;
 import lib.util.Units;
+import profiles.RobotProfile;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -24,10 +26,12 @@ public class TrajectoryGenerator {
     private static final double kMaxDy = 0.25;
     private static final double kMaxDTheta = Math.toRadians(5.0);
 
-    private Driv mDriveMotionPlanner;
+    private DriveMotionPlanner mDriveMotionPlanner;
+    private RobotProfile mRobotProfile;
 
-    public TrajectoryGenerator(DriveMotionPlanner pDriveMotionPlanner) {
-        mDriveMotionPlanner = pDriveMotionPlanner;
+    public TrajectoryGenerator(DriveController pDriveController) {
+        mDriveMotionPlanner = pDriveController.getDriveMotionPlanner();
+        mRobotProfile = pDriveController.getRobotProfile();
     }
 
     public Trajectory<TimedState<Pose2dWithCurvature>> generateTrajectory(
@@ -101,7 +105,7 @@ public class TrajectoryGenerator {
         Rotation2d rotation_delta = initial_heading.inverse().rotateBy(final_heading);
 
         // Find distance necessary to move wheels to achieve change in heading
-        double distance = rotation_delta.getRadians() * Units.meters_to_inches(mDriveMotionPlanner.getRobotProfile().getWheelbaseRadiusMeters());
+        double distance = rotation_delta.getRadians() * Units.meters_to_inches(mRobotProfile.getWheelbaseRadiusMeters());
         List<Pose2d> wheelTravel = Arrays.asList(new Pose2d(0.0, 0.0, new Rotation2d()),
                 new Pose2d(distance, 0.0, new Rotation2d()));
 
@@ -119,7 +123,7 @@ public class TrajectoryGenerator {
 
         Trajectory<TimedState<Rotation2d>> timedRotationDeltaTrajectory = TrajectoryUtil.distanceToRotation(wheelTrajectory,
                 initial_heading,
-                Units.meters_to_inches(mDriveMotionPlanner.getRobotProfile().getWheelbaseRadiusMeters()));
+                Units.meters_to_inches(mRobotProfile.getWheelbaseRadiusMeters()));
 
         return timedRotationDeltaTrajectory;
     }
