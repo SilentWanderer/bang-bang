@@ -11,9 +11,13 @@ import lib.util.Util;
 
 public class NonlinearFeedbackController extends AController {
 
+    private double mBeta;  // >0.
+    private double mZeta; // Damping coefficient, [0, 1].
 
-    public NonlinearFeedbackController(DifferentialDrive pDriveModel) {
+    public NonlinearFeedbackController(DifferentialDrive pDriveModel, double pBeta, double pZeta) {
         super(pDriveModel);
+        this.mBeta = pBeta;
+        this.mZeta = pZeta;
     }
 
     @Override
@@ -27,11 +31,9 @@ public class NonlinearFeedbackController extends AController {
         mError = pCurrentState.inverse().transformBy(pSetpoint.state().getPose());
 
         // Implements eqn. 5.12 from https://www.dis.uniroma1.it/~labrob/pub/papers/Ramsete01.pdf
-        final double kBeta = 2.0;  // >0.
-        final double kZeta = 0.7;  // Damping coefficient, [0, 1].
 
         // Compute gain parameter.
-        final double k = 2.0 * kZeta * Math.sqrt(kBeta * pDynamics.chassis_velocity.linear * pDynamics.chassis_velocity
+        final double k = 2.0 * mZeta * Math.sqrt(mBeta * pDynamics.chassis_velocity.linear * pDynamics.chassis_velocity
                 .linear + pDynamics.chassis_velocity.angular * pDynamics.chassis_velocity.angular);
 
         // Compute error components.
@@ -42,7 +44,7 @@ public class NonlinearFeedbackController extends AController {
                 pDynamics.chassis_velocity.linear * mError.getRotation().cos() +
                         k * Units.inches_to_meters(mError.getTranslation().x()),
                 pDynamics.chassis_velocity.angular + k * angle_error_rads +
-                        pDynamics.chassis_velocity.linear * kBeta * sin_x_over_x * Units.inches_to_meters(mError
+                        pDynamics.chassis_velocity.linear * mBeta * sin_x_over_x * Units.inches_to_meters(mError
                                 .getTranslation().y()));
 
         // Compute adjusted left and right wheel velocities.
@@ -61,6 +63,11 @@ public class NonlinearFeedbackController extends AController {
                 .left, pDynamics.wheel_acceleration.right, feedforward_voltages.left, feedforward_voltages.right);
         
         
+    }
+
+    public void setGains(double pBeta, double pZeta) {
+        mBeta = pBeta;
+        mZeta = pZeta;
     }
 
 }

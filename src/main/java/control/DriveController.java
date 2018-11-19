@@ -3,24 +3,15 @@ package control;
 import lib.geometry.Pose2d;
 import lib.geometry.Pose2dWithCurvature;
 import lib.geometry.Rotation2d;
+import lib.physics.DCMotorTransmission;
+import lib.physics.DifferentialDrive;
 import lib.trajectory.TimedView;
 import lib.trajectory.Trajectory;
 import lib.trajectory.TrajectoryIterator;
-import lib.trajectory.timing.CentripetalAccelerationConstraint;
 import lib.trajectory.timing.TimedState;
-import lib.trajectory.timing.TimingConstraint;
-import lib.util.ReflectingCSVWriter;
 import odometry.Kinematics;
-import odometry.RobotState;
 import odometry.RobotStateEstimator;
-import paths.TrajectoryGenerator;
-import paths.autos.NearScaleAuto;
-import profiles.LockdownProfile;
 import profiles.RobotProfile;
-import simulation.DriveSimulation;
-
-import java.util.Arrays;
-import java.util.List;
 
 /**
  * High level manager for pose tracking, path/trajectory following, and pose stabilization.
@@ -30,16 +21,29 @@ public class DriveController {
     private final double kDt;
 
     private final RobotProfile mRobotProfile;
-    private final DriveMotionPlanner mDriveMotionPlanner;
+    private final DCMotorTransmission mLeftTransmission, mRightTransmission;
+    private final DifferentialDrive mDriveModel;
     private final Kinematics mKinematicModel;
+
+    private final NonlinearFeedbackController mController;
+    private final DriveMotionPlanner mDriveMotionPlanner;
     private final RobotStateEstimator mRobotStateEstimator;
 
     public DriveController(RobotProfile pRobotProfile, double pDt) {
-        this.mRobotProfile = pRobotProfile;
-        this.kDt = pDt;
-        this.mDriveMotionPlanner = new DriveMotionPlanner(mRobotProfile, DriveMotionPlanner.PlannerMode.FEEDFORWARD_ONLY);
-        this.mKinematicModel = new Kinematics(mRobotProfile);
-        this.mRobotStateEstimator = new RobotStateEstimator(mKinematicModel);
+        mRobotProfile = pRobotProfile;
+        // Invert our feedforward constants. Torque constant is kT = I * kA, where I is the robot modeled as a cylindrical load on the transmission and kA is the inverted feedforward.
+        mLeftTransmission = new DCMotorTransmission(1 / mRobotProfile.getLeftVoltPerSpeed(), mRobotProfile.getCylindricalMoi() / mRobotProfile.getLeftVoltPerAccel(), mRobotProfile.getLeftFrictionVoltage());
+        mRightTransmission = new DCMotorTransmission(1 / mRobotProfile.getRightVoltPerSpeed(), mRobotProfile.getCylindricalMoi() / mRobotProfile.getRightVoltPerAccel(), mRobotProfile.getRightFrictionVoltage());
+        mDriveModel = new DifferentialDrive(mRobotProfile.getLinearInertia(), mRobotProfile.getAngularInertia(), mRobotProfile.getAngularDrag(), mRobotProfile.getWheelRadiusMeters(), mRobotProfile.getWheelbaseRadiusMeters(),
+                mLeftTransmission, mRightTransmission);
+        mKinematicModel = new Kinematics(mRobotProfile);
+
+        mController = new NonlinearFeedbackController(mDriveModel, 0.65, 0.175);
+        mDriveMotionPlanner = new DriveMotionPlanner(mDriveModel, DriveMotionPlanner.PlannerMode.FEEDFORWARD_ONLY, mController);
+        mRobotStateEstimator = new RobotStateEstimator(mKinematicModel);
+
+        kDt = pDt;
+
     }
 
     public DriveOutput getOutput(double pTimestamp, double pLeftAbsolutePos, double pRightAbsolutePos, double pHeadingDegrees) {
@@ -92,6 +96,10 @@ public class DriveController {
 
     public RobotStateEstimator getRobotStateEstimator() {
         return mRobotStateEstimator;
+    }
+
+    public NonlinearFeedbackController getController() {
+        return mController;
     }
 
     public RobotProfile getRobotProfile() {

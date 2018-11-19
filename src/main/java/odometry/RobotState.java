@@ -87,7 +87,8 @@ public class RobotState {
         field_to_vehicle_.put(new InterpolatingDouble(timestamp), observation);
     }
 
-    public synchronized void addObservations(double timestamp, Twist2d measured_displacement,
+    public synchronized void
+    addObservations(double timestamp, Twist2d measured_displacement,
                                              Twist2d measured_velocity) {
         addFieldToVehicleObservation(timestamp,
                 mKinematicModel.integrateForwardKinematics(getLatestFieldToVehicle().getValue(), measured_displacement));
@@ -101,14 +102,14 @@ public class RobotState {
         final Twist2d delta = mKinematicModel.forwardKinematics(last_measurement.getRotation(),
                 left_encoder_delta_distance, right_encoder_delta_distance,
                 current_gyro_angle);
-        distance_driven_ += delta.dx; //do we care about dy here?
+        distance_driven_ += delta.dx;
         return delta;
     }
 
     public synchronized Twist2d generateOdometryFromSensors(double left_encoder_delta_distance, double
             right_encoder_delta_distance) {
         final Twist2d delta = mKinematicModel.forwardKinematics(left_encoder_delta_distance, right_encoder_delta_distance);
-        distance_driven_ += delta.dx; //do we care about dy here?
+        distance_driven_ += delta.dx;
         return delta;
     }
 

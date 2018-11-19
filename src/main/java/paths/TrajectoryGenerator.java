@@ -24,7 +24,7 @@ public class TrajectoryGenerator {
     private static final double kMaxDy = 0.25;
     private static final double kMaxDTheta = Math.toRadians(5.0);
 
-    private DriveMotionPlanner mDriveMotionPlanner;
+    private Driv mDriveMotionPlanner;
 
     public TrajectoryGenerator(DriveMotionPlanner pDriveMotionPlanner) {
         mDriveMotionPlanner = pDriveMotionPlanner;

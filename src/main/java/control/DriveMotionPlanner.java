@@ -22,22 +22,14 @@ import java.util.List;
  */
 public class DriveMotionPlanner implements CSVWritable {
     
-    private final RobotProfile mRobotProfile;
-    private final DCMotorTransmission mLeftDriveTransmission, mRightDriveTransmission;
     private final DifferentialDrive mDriveModel;
 
     private AController mController;
     private PlannerMode mPlannerMode;
     
-    public DriveMotionPlanner(RobotProfile pRobotProfile, PlannerMode pPlannerMode) {
-        mRobotProfile = pRobotProfile;
-
-        // Invert our feedforward constants. Torque constant is kT = I * kA, where I is the robot modeled as a cylindrical load on the transmission and kA is the inverted feedforward.
-        mLeftDriveTransmission = new DCMotorTransmission(1 / mRobotProfile.getLeftVoltPerSpeed(), mRobotProfile.getCylindricalMoi() / mRobotProfile.getLeftVoltPerAccel(), mRobotProfile.getLeftFrictionVoltage());
-        mRightDriveTransmission = new DCMotorTransmission(1 / mRobotProfile.getRightVoltPerSpeed(), mRobotProfile.getCylindricalMoi() / mRobotProfile.getRightVoltPerAccel(), mRobotProfile.getRightFrictionVoltage());
-        mDriveModel = new DifferentialDrive(mRobotProfile.getLinearInertia(), mRobotProfile.getAngularInertia(), mRobotProfile.getAngularDrag(), mRobotProfile.getWheelRadiusMeters(), mRobotProfile.getWheelbaseRadiusMeters(),
-                mLeftDriveTransmission, mRightDriveTransmission);
-        mController = new NonlinearFeedbackController(mDriveModel);
+    public DriveMotionPlanner(DifferentialDrive pDriveModel, PlannerMode pPlannerMode, AController pController) {
+        mDriveModel = pDriveModel;
+        mController = pController;
         mPlannerMode = pPlannerMode;
     }
 
@@ -191,15 +183,6 @@ public class DriveMotionPlanner implements CSVWritable {
     public TimedState<Pose2dWithCurvature> setpoint() {
         return mSetpoint;
     }
-
-    public RobotProfile getRobotProfile() {
-        return mRobotProfile;
-    }
-
-    public DCMotorTransmission getLeftDriveTransmission() {
-        return mLeftDriveTransmission;
-    }
-
     public DifferentialDrive getDriveModel() {
         return mDriveModel;
     }
