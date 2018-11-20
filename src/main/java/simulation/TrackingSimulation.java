@@ -30,8 +30,8 @@ public class TrackingSimulation {
 
     private final double kDt;
 
-    private DriveController mDriveController = new DriveController(new LockdownProfile(), 0.01);
-
+    private final DriveController mDriveController;
+    private final TrajectoryGenerator mTrajectoryGenerator;
 
     // in / s
     private final double kMaxLinearVel = 130.0; // 10 ft/s -> 120 in / s
@@ -44,11 +44,16 @@ public class TrackingSimulation {
     private ReflectingCSVWriter<Pose2d> csvPoseWriter;
     private ReflectingCSVWriter<DriveMotionPlanner> csvDrivePlanner;
 
-    private TrajectoryGenerator mTrajectoryGenerator = new TrajectoryGenerator(mDriveController);
     private DriveSimulation mDriveSimulation;
 
     public TrackingSimulation(double pDt) {
+        this(new LockdownProfile(), pDt);
+    }
+
+    public TrackingSimulation(RobotProfile pRobotProfile, double pDt) {
         kDt = pDt;
+        mDriveController = new DriveController(new LockdownProfile(), 0.01);
+        mTrajectoryGenerator = new TrajectoryGenerator(mDriveController);
         csvPoseWriter = new ReflectingCSVWriter<>("tracking.csv", Pose2d.class);
         csvDrivePlanner = new ReflectingCSVWriter<>("trajectory.csv", DriveMotionPlanner.class);
         mDriveSimulation = new DriveSimulation(mDriveController, csvPoseWriter, csvDrivePlanner, kDt);
